@@ -1,0 +1,136 @@
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index d9d91c9..528c60a 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin nacl netbsd openbsd plan9 solaris windows
++// +build darwin nacl netbsd openbsd plan9 solaris windows atman
+ 
+ package runtime
+ 
+diff --git a/src/runtime/print1_write.go b/src/runtime/print1_write.go
+index 6b1467b..5678ced 100644
+--- a/src/runtime/print1_write.go
++++ b/src/runtime/print1_write.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !android
++// +build !atman
+ 
+ package runtime
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 134c999..6ed0cda 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -56,6 +56,7 @@ var (
+ 	isplan9   int32
+ 	issolaris int32
+ 	iswindows int32
++	isatman   int32
+ )
+ 
+ func goargs() {
+diff --git a/src/runtime/zgoos_android.go b/src/runtime/zgoos_android.go
+index 0590bd9..69379a2 100644
+--- a/src/runtime/zgoos_android.go
++++ b/src/runtime/zgoos_android.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_darwin.go b/src/runtime/zgoos_darwin.go
+index c0a7cd6..e5b9c73 100644
+--- a/src/runtime/zgoos_darwin.go
++++ b/src/runtime/zgoos_darwin.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_dragonfly.go b/src/runtime/zgoos_dragonfly.go
+index 008d6de..8a80ef9 100644
+--- a/src/runtime/zgoos_dragonfly.go
++++ b/src/runtime/zgoos_dragonfly.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_freebsd.go b/src/runtime/zgoos_freebsd.go
+index 2478940..771f4e5 100644
+--- a/src/runtime/zgoos_freebsd.go
++++ b/src/runtime/zgoos_freebsd.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_linux.go b/src/runtime/zgoos_linux.go
+index c775ab5..0f7c3d4 100644
+--- a/src/runtime/zgoos_linux.go
++++ b/src/runtime/zgoos_linux.go
+@@ -17,3 +17,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_nacl.go b/src/runtime/zgoos_nacl.go
+index d9d88f4..f79470c 100644
+--- a/src/runtime/zgoos_nacl.go
++++ b/src/runtime/zgoos_nacl.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_netbsd.go b/src/runtime/zgoos_netbsd.go
+index ff2c5cb..dd7c79e 100644
+--- a/src/runtime/zgoos_netbsd.go
++++ b/src/runtime/zgoos_netbsd.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_openbsd.go b/src/runtime/zgoos_openbsd.go
+index b071dc6..1af53ac 100644
+--- a/src/runtime/zgoos_openbsd.go
++++ b/src/runtime/zgoos_openbsd.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 1
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_plan9.go b/src/runtime/zgoos_plan9.go
+index 4306b0f..e2fc322 100644
+--- a/src/runtime/zgoos_plan9.go
++++ b/src/runtime/zgoos_plan9.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 1
+ const goos_solaris = 0
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_solaris.go b/src/runtime/zgoos_solaris.go
+index 10f9537..d59a8ff 100644
+--- a/src/runtime/zgoos_solaris.go
++++ b/src/runtime/zgoos_solaris.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 1
+ const goos_windows = 0
++const goos_atman = 0
+diff --git a/src/runtime/zgoos_windows.go b/src/runtime/zgoos_windows.go
+index 56f5c58..bbeb675 100644
+--- a/src/runtime/zgoos_windows.go
++++ b/src/runtime/zgoos_windows.go
+@@ -15,3 +15,4 @@ const goos_openbsd = 0
+ const goos_plan9 = 0
+ const goos_solaris = 0
+ const goos_windows = 1
++const goos_atman = 0
