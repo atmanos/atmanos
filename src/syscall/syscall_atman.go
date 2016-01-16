@@ -24,3 +24,7 @@ type Timeval struct {
 	Sec  int64
 	Usec int64
 }
+
+func Getenv(s string) (string, error) {
+	return "", EINVAL
+}
