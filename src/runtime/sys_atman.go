@@ -247,6 +247,20 @@ func HYPERVISOR_mmuext_op(ops []mmuExtOp, domid uint16) uintptr {
 	)
 }
 
+func HYPERVISOR_sched_op(op uintptr, arg unsafe.Pointer) uintptr {
+	const _HYPERVISOR_sched_op = 29
+
+	return hypercall(
+		_HYPERVISOR_sched_op,
+		op,
+		uintptr(arg),
+		0,
+		0,
+		0,
+		0,
+	)
+}
+
 // memory management
 
 var (
