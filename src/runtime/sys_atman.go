@@ -177,6 +177,20 @@ func HYPERVISOR_console_io(op uint64, size uint64, data uintptr) uintptr {
 	)
 }
 
+func HYPERVISOR_event_channel_op(cmd uintptr, op unsafe.Pointer) uintptr {
+	const _HYPERVISOR_event_channel_op = 32
+
+	return hypercall(
+		_HYPERVISOR_event_channel_op,
+		cmd,
+		uintptr(op),
+		0,
+		0,
+		0,
+		0,
+	)
+}
+
 func HYPERVISOR_update_va_mapping(vaddr uintptr, val uintptr, flags uint64) uintptr {
 	const _HYPERVISOR_update_va_mapping = 14
 
