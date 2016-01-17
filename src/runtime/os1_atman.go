@@ -81,10 +81,17 @@ func semasleep(ns int64) int32 {
 	print("semasleep(", ns, ")", "\n")
 	_g_ := getg()
 
+	if ns >= 0 {
+		return tsemacquire(&_g_.m.waitsemacount, ns)
+	}
+
 	for {
-		if _g_.m.waitsemacount > 0 {
-			_g_.m.waitsemacount--
-			return 0 // semaphore acquired
+		v := atomicload(&_g_.m.waitsemacount)
+		if v > 0 {
+			if cas(&_g_.m.waitsemacount, v, v-1) {
+				return 0 // semaphore acquired
+			}
+			continue
 		}
 
 		a := uintptr(unsafe.Pointer(&_g_.m.waitsemacount))
@@ -98,12 +105,39 @@ func semasleep(ns int64) int32 {
 	}
 }
 
+// tsemacquire ...
+func tsemacquire(waitsemacount *uint32, ns int64) int32 {
+	a := uintptr(unsafe.Pointer(waitsemacount))
+	key := int(a & 511) // TODO: hash address
+	s := &sleeptable[key]
+
+	s.qlock.lock()
+	s.waiting.Add(taskcurrent)
+	s.qlock.unlock()
+
+	if tasksleep(ns) {
+		return -1
+	}
+
+	return 0
+}
+
 // Wake up mp, which is or will soon be sleeping on mp->waitsema.
 //go:nosplit
-func semawakeup(mp *m) int32 {
-	print("semawakeup(", unsafe.Pointer(mp), ")", "\n")
-	crash()
-	return 0
+func semawakeup(mp *m) {
+	xadd(&mp.waitsemacount, 1)
+
+	a := uintptr(unsafe.Pointer(&mp.waitsemacount))
+	key := int(a & 511) // TODO: hash address
+	s := &sleeptable[key]
+
+	s.qlock.lock()
+	if next := s.waiting.Head; next != nil {
+		s.waiting.Remove(next)
+		taskready(next)
+	}
+	s.qlock.unlock()
+	taskswitch()
 }
 
 var (

@@ -15,7 +15,8 @@ var (
 	// a normal Task.
 	taskcurrent = &Task{ID: 0}
 
-	taskrunqueue TaskList
+	taskrunqueue   TaskList
+	tasksleepqueue TaskList
 )
 
 type Task struct {
@@ -27,6 +28,9 @@ type Task struct {
 	Ready bool
 
 	Next, Prev *Task
+
+	SleepUntil           int64
+	NextSleep, PrevSleep *Task
 }
 
 // taskcreate spawns a new task,
@@ -87,7 +91,16 @@ func taskyield() {
 	taskswitch()
 }
 
+// tasksleep puts currenttask to sleep for up to ns.
+// If the sleep is interrupted before the timer triggers,
+// it returns false.
+func tasksleep(ns int64) bool {
+
+}
+
 func taskswitch() {
+	taskrunqueue.debug()
+
 	taskprev := taskcurrent
 	taskcurrent = taskrunqueue.Head
 	taskrunqueue.Remove(taskcurrent)
@@ -103,6 +116,14 @@ func taskexit() {
 
 type TaskList struct {
 	Head, Tail *Task
+}
+
+func (l *TaskList) debug() {
+	print("[")
+	for t := l.Head; t != nil; t = t.Next {
+		print("Task{ID: ", t.ID, "}, ")
+	}
+	print("]\n")
 }
 
 func (l *TaskList) Add(t *Task) {
