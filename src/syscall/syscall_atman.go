@@ -13,7 +13,29 @@ func (e Errno) Error() string {
 	return "errno " + itoa(int(e))
 }
 
-const EINVAL = Errno(0x1)
+const (
+	EINVAL = Errno(iota + 1)
+	EISDIR
+	ENOTDIR
+	ENAMETOOLONG
+)
+
+const (
+	O_RDONLY = 1 << iota
+	O_WRONLY
+	O_RDWR
+	O_CREAT
+	O_APPEND
+	O_TRUNC
+	O_EXCL
+	O_SYNC
+)
+
+var (
+	Stdin  = 0
+	Stdout = 1
+	Stderr = 2
+)
 
 type Timespec struct {
 	Sec  int64
@@ -25,6 +47,54 @@ type Timeval struct {
 	Usec int64
 }
 
-func Getenv(s string) (string, error) {
+type SysProcAttr struct{}
+
+func Getenv(s string) (string, bool) {
+	return "", false
+}
+
+func Setenv(key, value string) error {
+	return nil
+}
+
+func Unsetenv(key string) error {
+	return nil
+}
+
+func Environ() []string {
+	return nil
+}
+
+func Clearenv() {}
+
+func Getpagesize() int { return 0x1000 }
+
+func Getppid() int { return 2 }
+
+func Getpid() int { return 3 }
+
+func Getuid() int               { return 1 }
+func Geteuid() int              { return 1 }
+func Getgid() int               { return 1 }
+func Getegid() int              { return 1 }
+func Getgroups() ([]int, error) { return []int{1}, nil }
+
+const ImplementsGetwd = false
+
+func Getwd() (dir string, err error) {
 	return "", EINVAL
 }
+
+func Chdir(path string) error {
+	return EINVAL
+}
+
+func Fchdir(fd int) error {
+	return EINVAL
+}
+
+func Mkdir(path string, perm uint32) error {
+	return EINVAL
+}
+
+func Exit(code int) {}
