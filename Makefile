@@ -22,6 +22,6 @@ patch:
 unpatch:
 	find patches/ -name "*.diff" -exec git apply -R --directory=$(GOROOT) {} \;
 
-.PHONY:
+.PHONY: clean
 clean:
 	cd $(GOROOT) && git clean -dfx && git checkout .
