@@ -28,9 +28,6 @@ type Task struct {
 	Ready bool
 
 	Next, Prev *Task
-
-	SleepUntil           int64
-	NextSleep, PrevSleep *Task
 }
 
 // taskcreate spawns a new task,
@@ -91,13 +88,6 @@ func taskyield() {
 	taskswitch()
 }
 
-// tasksleep puts currenttask to sleep for up to ns.
-// If the sleep is interrupted before the timer triggers,
-// it returns false.
-func tasksleep(ns int64) bool {
-
-}
-
 func taskswitch() {
 	taskrunqueue.debug()
 
@@ -108,6 +98,16 @@ func taskswitch() {
 
 	println("switching from", taskprev.ID, "to", taskcurrent.ID)
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
+}
+
+// tasksleep puts the current task to sleep for up to ns.
+// It returns the remaining sleep time if woken early.
+// If ns is -1, rem will always be -1.
+func tasksleep(ns int64) (rem int64) {
+	return 0
+}
+
+func taskwake(task *Task) {
 }
 
 func taskexit() {

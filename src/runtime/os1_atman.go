@@ -80,70 +80,76 @@ func semacreate() uintptr {
 func semasleep(ns int64) int32 {
 	print("semasleep(", ns, ")", "\n")
 	_g_ := getg()
+	addr := &_g_.m.waitsemacount
 
-	if ns >= 0 {
-		return tsemacquire(&_g_.m.waitsemacount, ns)
+	var (
+		waiter = &semawaiter{addr: addr, task: taskcurrent, up: false}
+		s      = &sleeptable[sleeptablekey(addr)]
+	)
+
+	s.lock()
+
+	if *addr > 0 {
+		xadd(addr, -1)
+		s.unlock()
+		return 0
 	}
 
-	for {
-		v := atomicload(&_g_.m.waitsemacount)
-		if v > 0 {
-			if cas(&_g_.m.waitsemacount, v, v-1) {
-				return 0 // semaphore acquired
-			}
-			continue
+	s.add(waiter)
+
+	for !waiter.up {
+		s.unlock()
+		ns = tasksleep(ns)
+		s.lock()
+
+		if ns == 0 {
+			break
 		}
-
-		a := uintptr(unsafe.Pointer(&_g_.m.waitsemacount))
-		key := int(a & 511) // TODO: hash address
-		s := &sleeptable[key]
-
-		s.qlock.lock()
-		s.waiting.Add(taskcurrent)
-		s.qlock.unlock()
-		taskswitch()
-	}
-}
-
-// tsemacquire ...
-func tsemacquire(waitsemacount *uint32, ns int64) int32 {
-	a := uintptr(unsafe.Pointer(waitsemacount))
-	key := int(a & 511) // TODO: hash address
-	s := &sleeptable[key]
-
-	s.qlock.lock()
-	s.waiting.Add(taskcurrent)
-	s.qlock.unlock()
-
-	if tasksleep(ns) {
-		return -1
 	}
 
-	return 0
+	if !waiter.up {
+		s.remove(waiter)
+	}
+
+	s.unlock()
+
+	if waiter.up {
+		return 0
+	}
+
+	return -1
 }
 
 // Wake up mp, which is or will soon be sleeping on mp->waitsema.
 //go:nosplit
 func semawakeup(mp *m) {
-	xadd(&mp.waitsemacount, 1)
+	var (
+		addr = &mp.waitsemacount
+		s    = &sleeptable[sleeptablekey(addr)]
+	)
 
-	a := uintptr(unsafe.Pointer(&mp.waitsemacount))
-	key := int(a & 511) // TODO: hash address
-	s := &sleeptable[key]
+	s.lock()
 
-	s.qlock.lock()
-	if next := s.waiting.Head; next != nil {
-		s.waiting.Remove(next)
-		taskready(next)
+	waiter := s.removeWaiterOn(addr)
+	if waiter == nil {
+		xadd(addr, 1)
+	} else {
+		waiter.up = true
+		taskwake(waiter.task)
 	}
-	s.qlock.unlock()
-	taskswitch()
+
+	s.unlock()
 }
 
 var (
 	sleeptable [512]sema
 	sleeplocks [512]qlock
 )
+
+func sleeptablekey(addr *uint32) int {
+	a := uintptr(unsafe.Pointer(addr))
+	return int(a & 511) // TODO: hash address
+}
 
 type qlock struct {
 	owner   *Task
@@ -171,8 +177,37 @@ func (l *qlock) unlock() {
 }
 
 type sema struct {
-	qlock   *qlock
-	waiting TaskList
+	*qlock
+
+	head, tail *semawaiter
+}
+
+func (s *sema) removeWaiterOn(addr *uint32) *semawaiter {
+	return nil
+}
+
+func (s *sema) remove(w *semawaiter) {
+}
+
+func (s *sema) add(w *semawaiter) {
+	if s.tail != nil {
+		s.tail.next = w
+		w.prev = s.tail
+	} else {
+		s.head = w
+		w.prev = nil
+	}
+
+	s.tail = w
+	w.next = nil
+}
+
+type semawaiter struct {
+	addr *uint32
+	task *Task
+	up   bool
+
+	next, prev *semawaiter
 }
 
 func init() {
