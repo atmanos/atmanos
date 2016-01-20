@@ -8,6 +8,14 @@ func _nanotime() int64 {
 	return t.nanotime()
 }
 
+//go:nosplit
+func _time_now() (int64, int32) {
+	var t timeInfo
+	t.load(_atman_shared_info)
+
+	return t.timeNow()
+}
+
 // timeInfo shadows time-related values stored in xenSharedInfo
 // and vcpuTimeInfo structures.
 type timeInfo struct {
@@ -52,11 +60,25 @@ func (t *timeInfo) load(info *xenSharedInfo) {
 	}
 }
 
+func (t *timeInfo) nsSinceSystem() int64 {
+	var diffTSC = cputicks() - t.TSC
+
+	return (diffTSC << t.TSCShift) * t.TSCMul
+}
+
 func (t *timeInfo) nanotime() int64 {
+	return t.BootSec*1e9 + t.BootNsec + t.System + t.nsSinceSystem()
+}
+
+func (t *timeInfo) timeNow() (int64, int32) {
 	var (
-		diffTSC = cputicks() - t.TSC
-		tscNsec = (diffTSC << t.TSCShift) * t.TSCMul
+		sec  = t.BootSec
+		nsec = t.BootNsec + t.System + t.nsSinceSystem()
 	)
 
-	return t.BootSec*1e9 + t.BootNsec + t.System + tscNsec
+	// move whole seconds to second counter
+	sec += nsec / 1e9
+	nsec %= 1e9
+
+	return sec, int32(nsec)
 }

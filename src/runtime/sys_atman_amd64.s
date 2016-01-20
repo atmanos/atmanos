@@ -38,6 +38,11 @@ TEXT runtime·nanotime(SB),NOSPLIT,$8
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB),NOSPLIT,$16
+	CALL	·_time_now(SB)
+	MOVQ	0(SP), AX
+	MOVQ	AX, ret+0(FP)
+	MOVQ	8(SP), AX
+	MOVQ	AX, ret+8(FP)
 	RET
 
 // set tls base to DI
