@@ -3,6 +3,7 @@ GOROOT           := $(abspath ../go)
 
 .PHONY: build
 build: $(GOROOT)/bin/go update-stdlib
+	GOOS=atman $(GOROOT)/bin/go build -a runtime
 
 GODEPS = $(shell find $(GOROOT)/src/cmd $(GOROOT)/src/go -name "*.go")
 $(GOROOT)/bin/go: $(GODEPS)
