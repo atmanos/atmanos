@@ -31,6 +31,9 @@ TEXT runtime·write(SB),NOSPLIT,$0-28
 
 // func nanotime() int64
 TEXT runtime·nanotime(SB),NOSPLIT,$8
+	CALL	·_nanotime(SB)
+	MOVQ	0(SP), AX
+	MOVQ	AX, ret+0(FP)
 	RET
 
 // func now() (sec int64, nsec int32)
