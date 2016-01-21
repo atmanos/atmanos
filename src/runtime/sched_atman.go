@@ -20,14 +20,19 @@ var (
 )
 
 type Task struct {
-	ID    int
-	State [256]byte
+	ID int
 
 	Context Context
 
 	WakeAt int64
 
 	Next, Prev *Task
+
+	semawaiter
+}
+
+func (t *Task) debug() {
+	println("Task{ID: ", t.ID, ", WakeAt: ", t.WakeAt, "}")
 }
 
 // taskcreate spawns a new task,
@@ -68,6 +73,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 		rsp: uintptr(stk),
 		rip: funcPC(taskstart),
 	}
+	t.semawaiter.task = t
 
 	taskid++
 	taskn++
@@ -84,12 +90,18 @@ func taskready(t *Task) {
 }
 
 func taskyield() {
+	println("taskyield()")
 	taskready(taskcurrent)
 	taskswitch()
 }
 
 func taskswitch() {
+	println("Current:")
+	taskcurrent.debug()
+	println("Runnable:")
 	taskrunqueue.debug()
+	println("Sleeping:")
+	tasksleepqueue.debug()
 
 	var (
 		taskprev = taskcurrent
@@ -112,6 +124,10 @@ func taskswitch() {
 
 	taskcurrent = tasknext
 	taskrunqueue.Remove(taskcurrent)
+
+	if taskcurrent == taskprev {
+		return
+	}
 
 	println("switching from", taskprev.ID, "to", taskcurrent.ID)
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
@@ -172,11 +188,12 @@ type TaskList struct {
 }
 
 func (l *TaskList) debug() {
-	print("[")
+	println("[")
 	for t := l.Head; t != nil; t = t.Next {
-		print("Task{ID: ", t.ID, "}, ")
+		print("  ")
+		t.debug()
 	}
-	print("]\n")
+	println("]")
 }
 
 func (l *TaskList) Add(t *Task) {

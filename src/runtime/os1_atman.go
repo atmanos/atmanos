@@ -83,18 +83,25 @@ func semasleep(ns int64) int32 {
 	addr := &_g_.m.waitsemacount
 
 	var (
-		waiter = &semawaiter{addr: addr, task: taskcurrent, up: false}
+		waiter = &taskcurrent.semawaiter
 		s      = &sleeptable[sleeptablekey(addr)]
 	)
 
+	waiter.addr = addr
+	waiter.up = false
+
+	println("locking sema")
 	s.lock()
 
+	println("checking sema value")
 	if atomicload(addr) > 0 {
 		xadd(addr, -1)
 		s.unlock()
+
 		return 0
 	}
 
+	println("adding waiter")
 	s.add(waiter)
 
 	for !waiter.up {
@@ -183,10 +190,30 @@ type sema struct {
 }
 
 func (s *sema) removeWaiterOn(addr *uint32) *semawaiter {
+	for w := s.head; w != nil; w = w.next {
+		if w.addr != addr {
+			continue
+		}
+
+		s.remove(w)
+		return w
+	}
+
 	return nil
 }
 
 func (s *sema) remove(w *semawaiter) {
+	if w.prev != nil {
+		w.prev.next = w.next
+	} else {
+		s.head = w.next
+	}
+
+	if w.next != nil {
+		w.next.prev = w.prev
+	} else {
+		s.tail = w.prev
+	}
 }
 
 func (s *sema) add(w *semawaiter) {
