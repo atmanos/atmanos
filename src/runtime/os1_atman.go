@@ -62,7 +62,7 @@ func sigblock() {}
 
 //go:nosplit
 func osyield() {
-	println("osyield()")
+	HYPERVISOR_sched_op(0, nil)
 }
 
 // Create a semaphore, which will be assigned to m->waitsema.

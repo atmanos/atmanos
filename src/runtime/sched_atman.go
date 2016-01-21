@@ -25,7 +25,7 @@ type Task struct {
 
 	Context Context
 
-	Ready bool
+	WakeAt int64
 
 	Next, Prev *Task
 }
@@ -79,7 +79,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 func taskstart(fn, _, mp, gp unsafe.Pointer)
 
 func taskready(t *Task) {
-	t.Ready = true
+	t.WakeAt = 0
 	taskrunqueue.Add(t)
 }
 
@@ -91,10 +91,27 @@ func taskyield() {
 func taskswitch() {
 	taskrunqueue.debug()
 
-	taskprev := taskcurrent
-	taskcurrent = taskrunqueue.Head
+	var (
+		taskprev = taskcurrent
+		tasknext *Task
+	)
+
+	for {
+		taskwakeready(nanotime())
+
+		if tasknext = taskrunqueue.Head; tasknext != nil {
+			break
+		}
+
+		if tasksleepqueue.Head == nil || tasksleepqueue.Head.WakeAt == -1 {
+			panic("No runnable or timed sleep tasks to run")
+		}
+
+		osyield()
+	}
+
+	taskcurrent = tasknext
 	taskrunqueue.Remove(taskcurrent)
-	taskcurrent.Ready = false
 
 	println("switching from", taskprev.ID, "to", taskcurrent.ID)
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
@@ -104,10 +121,46 @@ func taskswitch() {
 // It returns the remaining sleep time if woken early.
 // If ns is -1, rem will always be -1.
 func tasksleep(ns int64) (rem int64) {
-	return 0
+	sleepstart := nanotime()
+
+	if ns == -1 {
+		taskcurrent.WakeAt = -1
+	} else {
+		taskcurrent.WakeAt = sleepstart + ns
+	}
+
+	tasksleepqueue.AddByWakeAt(taskcurrent)
+	taskswitch()
+
+	sleepend := nanotime()
+
+	if ns < 0 {
+		return -1
+	}
+
+	if rem = sleepend - sleepstart; rem < 0 {
+		rem = 0
+	}
+
+	return rem
 }
 
+// taskwake moves task from the sleep to the run queue.
 func taskwake(task *Task) {
+	tasksleepqueue.Remove(task)
+	taskready(task)
+}
+
+func taskwakeready(at int64) {
+	for {
+		task := tasksleepqueue.Head
+		if task == nil || task.WakeAt < 0 || task.WakeAt > at {
+			return
+		}
+
+		tasksleepqueue.Remove(task)
+		taskready(task)
+	}
 }
 
 func taskexit() {
@@ -151,6 +204,9 @@ func (l *TaskList) Remove(t *Task) {
 	} else {
 		l.Tail = t.Prev
 	}
+}
+
+func (l *TaskList) AddByWakeAt(t *Task) {
 }
 
 // Context describes the state of a task
