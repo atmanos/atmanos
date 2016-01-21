@@ -164,7 +164,7 @@ func taskwakeready(at int64) {
 }
 
 func taskexit() {
-	println("taskexit()")
+	panic("taskexit()")
 }
 
 type TaskList struct {
@@ -207,6 +207,31 @@ func (l *TaskList) Remove(t *Task) {
 }
 
 func (l *TaskList) AddByWakeAt(t *Task) {
+	if t.WakeAt < 0 {
+		l.Add(t)
+		return
+	}
+
+	for i := l.Head; i != nil; i = i.Next {
+		if t.WakeAt > i.WakeAt && i.WakeAt >= 0 {
+			continue
+		}
+
+		if i.Prev == nil {
+			l.Head = t
+		} else {
+			i.Prev.Next = t
+		}
+
+		t.Prev = i.Prev
+		t.Next = i
+		i.Prev = t
+
+		return
+	}
+
+	// no match, add to tail
+	l.Add(t)
 }
 
 // Context describes the state of a task

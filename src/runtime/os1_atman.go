@@ -89,7 +89,7 @@ func semasleep(ns int64) int32 {
 
 	s.lock()
 
-	if *addr > 0 {
+	if atomicload(addr) > 0 {
 		xadd(addr, -1)
 		s.unlock()
 		return 0
