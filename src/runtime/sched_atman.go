@@ -106,9 +106,19 @@ func taskswitch() {
 	var (
 		taskprev = taskcurrent
 		tasknext *Task
+
+		i int
 	)
 
 	for {
+		if i%1000000 == 0 {
+			println("Current time:", nanotime())
+			println("Runnable:")
+			taskrunqueue.debug()
+			println("Sleeping:")
+			tasksleepqueue.debug()
+		}
+
 		taskwakeready(nanotime())
 
 		if tasknext = taskrunqueue.Head; tasknext != nil {
@@ -120,6 +130,7 @@ func taskswitch() {
 		}
 
 		osyield()
+		i++
 	}
 
 	taskcurrent = tasknext
@@ -131,6 +142,14 @@ func taskswitch() {
 
 	println("switching from", taskprev.ID, "to", taskcurrent.ID)
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
+}
+
+func tasksleepus(us uint32) {
+	ns := int64(us) * 1000
+
+	for ns > 0 {
+		ns = tasksleep(ns)
+	}
 }
 
 // tasksleep puts the current task to sleep for up to ns.
@@ -154,7 +173,7 @@ func tasksleep(ns int64) (rem int64) {
 		return -1
 	}
 
-	if rem = sleepend - sleepstart; rem < 0 {
+	if rem = ns - (sleepend - sleepstart); rem < 0 {
 		rem = 0
 	}
 

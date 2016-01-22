@@ -1,6 +1,9 @@
 package runtime
 
 //go:nosplit
+// func scaletsc(ticks, mul int64, shift uint8) int64
+
+//go:nosplit
 func _nanotime() int64 {
 	var t timeInfo
 	t.load(_atman_shared_info)
@@ -22,11 +25,11 @@ type timeInfo struct {
 	BootSec  int64
 	BootNsec int64
 
-	System int64 // ns since system boot / resume
-	TSC    int64 // tsc value of update to System
+	System int64  // ns since system boot / resume
+	TSC    uint64 // tsc value of update to System
 
-	TSCMul   int64 // scaling factors to convert TSC to nanoseconds
-	TSCShift uint8
+	TSCMul   uint64 // scaling factors to convert TSC to nanoseconds
+	TSCShift int8
 }
 
 // load atomically populates t from info.
@@ -45,9 +48,9 @@ func (t *timeInfo) load(info *xenSharedInfo) {
 		t.BootSec = int64(info.WcSec)
 		t.BootNsec = int64(info.WcNsec)
 		t.System = int64(info.VCPUInfo[0].Time.SystemTime)
-		t.TSC = int64(info.VCPUInfo[0].Time.TscTimestamp)
-		t.TSCMul = int64(info.VCPUInfo[0].Time.TscToSystemMul)
-		t.TSCShift = uint8(info.VCPUInfo[0].Time.TscShift)
+		t.TSC = info.VCPUInfo[0].Time.TscTimestamp
+		t.TSCMul = uint64(info.VCPUInfo[0].Time.TscToSystemMul)
+		t.TSCShift = info.VCPUInfo[0].Time.TscShift
 
 		var (
 			newversion   = atomicload(&info.VCPUInfo[0].Time.Version)
@@ -61,9 +64,18 @@ func (t *timeInfo) load(info *xenSharedInfo) {
 }
 
 func (t *timeInfo) nsSinceSystem() int64 {
-	var diffTSC = cputicks() - t.TSC
+	diff := uint64(cputicks()) - t.TSC
 
-	return (diffTSC << t.TSCShift) * t.TSCMul
+	if t.TSCShift < 0 {
+		diff >>= uint8(-t.TSCShift)
+	} else {
+		diff <<= uint8(t.TSCShift)
+	}
+
+	diff *= t.TSCMul
+	diff >>= 32
+
+	return int64(diff)
 }
 
 func (t *timeInfo) nanotime() int64 {

@@ -22,8 +22,10 @@ retry:
 	JMP	retry
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$16
-	CALL	runtime·taskyield(SB)
+TEXT runtime·usleep(SB),NOSPLIT,$8-8
+	MOVQ	us+0(FP), AX
+	MOVQ	AX, 0(SP)
+	CALL	runtime·tasksleepus(SB)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0-28
