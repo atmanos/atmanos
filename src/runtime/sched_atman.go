@@ -96,13 +96,6 @@ func taskyield() {
 }
 
 func taskswitch() {
-	println("Current:")
-	taskcurrent.debug()
-	println("Runnable:")
-	taskrunqueue.debug()
-	println("Sleeping:")
-	tasksleepqueue.debug()
-
 	var (
 		taskprev = taskcurrent
 		tasknext *Task
@@ -111,17 +104,10 @@ func taskswitch() {
 	)
 
 	for {
-		if i%1000000 == 0 {
-			println("Current time:", nanotime())
-			println("Runnable:")
-			taskrunqueue.debug()
-			println("Sleeping:")
-			tasksleepqueue.debug()
-		}
-
 		taskwakeready(nanotime())
 
 		if tasknext = taskrunqueue.Head; tasknext != nil {
+			println("tasknext ready")
 			break
 		}
 
@@ -134,13 +120,13 @@ func taskswitch() {
 	}
 
 	taskcurrent = tasknext
+	println("removing current task from runqueue")
 	taskrunqueue.Remove(taskcurrent)
-
-	if taskcurrent == taskprev {
-		return
-	}
+	println("removed from runqueue")
 
 	println("switching from", taskprev.ID, "to", taskcurrent.ID)
+	taskrunqueue.debug()
+	tasksleepqueue.debug()
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
 }
 
@@ -156,6 +142,7 @@ func tasksleepus(us uint32) {
 // It returns the remaining sleep time if woken early.
 // If ns is -1, rem will always be -1.
 func tasksleep(ns int64) (rem int64) {
+	print("tasksleep: task id=", taskcurrent.ID, " ns=", ns, "\n")
 	sleepstart := nanotime()
 
 	if ns == -1 {
@@ -182,6 +169,7 @@ func tasksleep(ns int64) (rem int64) {
 
 // taskwake moves task from the sleep to the run queue.
 func taskwake(task *Task) {
+	print("taskwake: task id=", task.ID, "\n")
 	tasksleepqueue.Remove(task)
 	taskready(task)
 }
@@ -192,13 +180,13 @@ func taskwakeready(at int64) {
 		if task == nil || task.WakeAt < 0 || task.WakeAt > at {
 			return
 		}
-
-		tasksleepqueue.Remove(task)
-		taskready(task)
+		print("taskwakeready: waking task id=", task.ID, "\n")
+		taskwake(task)
 	}
 }
 
 func taskexit() {
+	throw("taskexit()")
 	panic("taskexit()")
 }
 

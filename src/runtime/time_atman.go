@@ -3,12 +3,18 @@ package runtime
 //go:nosplit
 // func scaletsc(ticks, mul int64, shift uint8) int64
 
+var shadowTimeInfo timeInfo
+
 //go:nosplit
 func _nanotime() int64 {
-	var t timeInfo
-	t.load(_atman_shared_info)
+	var ns int64
 
-	return t.nanotime()
+	systemstack(func() {
+		shadowTimeInfo.load(_atman_shared_info)
+		ns = shadowTimeInfo.nanotime()
+	})
+
+	return ns
 }
 
 //go:nosplit
