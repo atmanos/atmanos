@@ -15,18 +15,24 @@ var (
 	// a normal Task.
 	taskcurrent = &Task{ID: 0}
 
-	taskrunqueue TaskList
+	taskrunqueue   TaskList
+	tasksleepqueue TaskList
 )
 
 type Task struct {
-	ID    int
-	State [256]byte
+	ID int
 
 	Context Context
 
-	Ready bool
+	WakeAt int64
 
 	Next, Prev *Task
+
+	semawaiter
+}
+
+func (t *Task) debug() {
+	println("Task{ID: ", t.ID, ", WakeAt: ", t.WakeAt, "}")
 }
 
 // taskcreate spawns a new task,
@@ -67,6 +73,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 		rsp: uintptr(stk),
 		rip: funcPC(taskstart),
 	}
+	t.semawaiter.task = t
 
 	taskid++
 	taskn++
@@ -78,7 +85,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 func taskstart(fn, _, mp, gp unsafe.Pointer)
 
 func taskready(t *Task) {
-	t.Ready = true
+	t.WakeAt = 0
 	taskrunqueue.Add(t)
 }
 
@@ -88,21 +95,99 @@ func taskyield() {
 }
 
 func taskswitch() {
-	taskprev := taskcurrent
-	taskcurrent = taskrunqueue.Head
-	taskrunqueue.Remove(taskcurrent)
-	taskcurrent.Ready = false
+	var (
+		taskprev = taskcurrent
+		tasknext *Task
+	)
 
-	println("switching from", taskprev.ID, "to", taskcurrent.ID)
+	for {
+		taskwakeready(nanotime())
+
+		if tasknext = taskrunqueue.Head; tasknext != nil {
+			break
+		}
+
+		if tasksleepqueue.Head == nil || tasksleepqueue.Head.WakeAt == -1 {
+			panic("No runnable or timed sleep tasks to run")
+		}
+
+		HYPERVISOR_sched_op(0, nil) // yield
+	}
+
+	taskcurrent = tasknext
+	taskrunqueue.Remove(taskcurrent)
+
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
 }
 
+func tasksleepus(us uint32) {
+	ns := int64(us) * 1000
+
+	for ns > 0 {
+		ns = tasksleep(ns)
+	}
+}
+
+// tasksleep puts the current task to sleep for up to ns.
+// It returns the remaining sleep time if woken early.
+// If ns is -1, rem will always be -1.
+func tasksleep(ns int64) (rem int64) {
+	sleepstart := nanotime()
+
+	if ns == -1 {
+		taskcurrent.WakeAt = -1
+	} else {
+		taskcurrent.WakeAt = sleepstart + ns
+	}
+
+	tasksleepqueue.AddByWakeAt(taskcurrent)
+	taskswitch()
+
+	sleepend := nanotime()
+
+	if ns < 0 {
+		return -1
+	}
+
+	if rem = ns - (sleepend - sleepstart); rem < 0 {
+		rem = 0
+	}
+
+	return rem
+}
+
+// taskwake moves task from the sleep to the run queue.
+func taskwake(task *Task) {
+	tasksleepqueue.Remove(task)
+	taskready(task)
+}
+
+func taskwakeready(at int64) {
+	for {
+		task := tasksleepqueue.Head
+		if task == nil || task.WakeAt < 0 || task.WakeAt > at {
+			return
+		}
+		taskwake(task)
+	}
+}
+
 func taskexit() {
-	println("taskexit()")
+	throw("taskexit()")
+	panic("taskexit()")
 }
 
 type TaskList struct {
 	Head, Tail *Task
+}
+
+func (l *TaskList) debug() {
+	println("[")
+	for t := l.Head; t != nil; t = t.Next {
+		print("  ")
+		t.debug()
+	}
+	println("]")
 }
 
 func (l *TaskList) Add(t *Task) {
@@ -132,6 +217,34 @@ func (l *TaskList) Remove(t *Task) {
 	}
 }
 
+func (l *TaskList) AddByWakeAt(t *Task) {
+	if t.WakeAt < 0 {
+		l.Add(t)
+		return
+	}
+
+	for i := l.Head; i != nil; i = i.Next {
+		if t.WakeAt > i.WakeAt && i.WakeAt >= 0 {
+			continue
+		}
+
+		if i.Prev == nil {
+			l.Head = t
+		} else {
+			i.Prev.Next = t
+		}
+
+		t.Prev = i.Prev
+		t.Next = i
+		i.Prev = t
+
+		return
+	}
+
+	// no match, add to tail
+	l.Add(t)
+}
+
 // Context describes the state of a task
 // for saving or restoring a task's execution context.
 type Context cpuRegisters
@@ -148,8 +261,6 @@ func (c *Context) debug() {
 
 func contextswitch(from, to *Context) {
 	if contextsave(from) == 0 {
-		from.debug()
-		to.debug()
 		contextload(to)
 	}
 }

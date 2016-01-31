@@ -22,9 +22,10 @@ retry:
 	JMP	retry
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$16
-	CALL	runtime·taskyield(SB)
-	RET
+// func usleep(ms uint32)
+TEXT runtime·usleep(SB),NOSPLIT,$0-4
+	MOVQ	$runtime·tasksleepus(SB), AX
+	JMP	AX
 
 TEXT runtime·write(SB),NOSPLIT,$0-28
 	RET

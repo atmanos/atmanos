@@ -62,7 +62,7 @@ func sigblock() {}
 
 //go:nosplit
 func osyield() {
-	println("osyield()")
+	taskyield()
 }
 
 // Create a semaphore, which will be assigned to m->waitsema.
@@ -78,38 +78,88 @@ func semacreate() uintptr {
 // Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
 //go:nosplit
 func semasleep(ns int64) int32 {
-	print("semasleep(", ns, ")", "\n")
 	_g_ := getg()
+	var ret int32
 
-	for {
-		if _g_.m.waitsemacount > 0 {
-			_g_.m.waitsemacount--
-			return 0 // semaphore acquired
+	systemstack(func() {
+		var (
+			addr   = &_g_.m.waitsemacount
+			waiter = &taskcurrent.semawaiter
+			s      = &sleeptable[sleeptablekey(addr)]
+		)
+
+		waiter.addr = addr
+		waiter.up = false
+
+		s.lock()
+
+		if atomicload(addr) > 0 {
+			xadd(addr, -1)
+			s.unlock()
+
+			ret = 0
+			return
 		}
 
-		a := uintptr(unsafe.Pointer(&_g_.m.waitsemacount))
-		key := int(a & 511) // TODO: hash address
-		s := &sleeptable[key]
+		s.add(waiter)
 
-		s.qlock.lock()
-		s.waiting.Add(taskcurrent)
-		s.qlock.unlock()
-		taskswitch()
-	}
+		for !waiter.up {
+			s.unlock()
+			ns = tasksleep(ns)
+			s.lock()
+
+			if ns == 0 {
+				break
+			}
+		}
+
+		if !waiter.up {
+			s.remove(waiter)
+		}
+
+		s.unlock()
+
+		if waiter.up {
+			ret = 0
+			return
+		}
+
+		ret = -1
+	})
+
+	return ret
 }
 
 // Wake up mp, which is or will soon be sleeping on mp->waitsema.
 //go:nosplit
-func semawakeup(mp *m) int32 {
-	print("semawakeup(", unsafe.Pointer(mp), ")", "\n")
-	crash()
-	return 0
+func semawakeup(mp *m) {
+	var (
+		addr = &mp.waitsemacount
+		s    = &sleeptable[sleeptablekey(addr)]
+	)
+
+	s.lock()
+
+	waiter := s.removeWaiterOn(addr)
+	if waiter == nil {
+		xadd(addr, 1)
+	} else {
+		waiter.up = true
+		taskwake(waiter.task)
+	}
+
+	s.unlock()
 }
 
 var (
 	sleeptable [512]sema
 	sleeplocks [512]qlock
 )
+
+func sleeptablekey(addr *uint32) int {
+	a := uintptr(unsafe.Pointer(addr))
+	return int(a & 511) // TODO: hash address
+}
 
 type qlock struct {
 	owner   *Task
@@ -137,8 +187,57 @@ func (l *qlock) unlock() {
 }
 
 type sema struct {
-	qlock   *qlock
-	waiting TaskList
+	*qlock
+
+	head, tail *semawaiter
+}
+
+func (s *sema) removeWaiterOn(addr *uint32) *semawaiter {
+	for w := s.head; w != nil; w = w.next {
+		if w.addr != addr {
+			continue
+		}
+
+		s.remove(w)
+		return w
+	}
+
+	return nil
+}
+
+func (s *sema) remove(w *semawaiter) {
+	if w.prev != nil {
+		w.prev.next = w.next
+	} else {
+		s.head = w.next
+	}
+
+	if w.next != nil {
+		w.next.prev = w.prev
+	} else {
+		s.tail = w.prev
+	}
+}
+
+func (s *sema) add(w *semawaiter) {
+	if s.tail != nil {
+		s.tail.next = w
+		w.prev = s.tail
+	} else {
+		s.head = w
+		w.prev = nil
+	}
+
+	s.tail = w
+	w.next = nil
+}
+
+type semawaiter struct {
+	addr *uint32
+	task *Task
+	up   bool
+
+	next, prev *semawaiter
 }
 
 func init() {
