@@ -11,7 +11,7 @@ var (
 	_atman_shared_info_page [2 * _PAGESIZE]byte
 
 	_atman_start_info  = &xenStartInfo{}
-	_atman_shared_info = &xenSharedInfo{}
+	_atman_shared_info *xenSharedInfo
 )
 
 //go:nosplit
@@ -136,12 +136,12 @@ func atmaninit() {
 	))
 
 	println("mapping _atman_start_info")
-	mapSharedInfo(_atman_start_info.SharedInfoAddr, _atman_shared_info)
+	mapSharedInfo(_atman_start_info.SharedInfoAddr)
 
 	_atman_mm.init()
 }
 
-func mapSharedInfo(vaddr uintptr, i *xenSharedInfo) {
+func mapSharedInfo(vaddr uintptr) {
 	pageAddr := round(
 		uintptr(unsafe.Pointer(&_atman_shared_info_page[0])),
 		_PAGESIZE,
@@ -158,7 +158,7 @@ func mapSharedInfo(vaddr uintptr, i *xenSharedInfo) {
 		panic("HYPERVISOR_update_va_mapping failed")
 	}
 
-	*i = *(*xenSharedInfo)(unsafe.Pointer(pageAddr))
+	_atman_shared_info = (*xenSharedInfo)(unsafe.Pointer(pageAddr))
 }
 
 // memory management
