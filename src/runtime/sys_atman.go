@@ -91,13 +91,13 @@ type archVCPUInfo struct {
 }
 
 type vcpuTimeInfo struct {
-	Version        uint32
-	_              uint32
-	TscTimestamp   uint64
-	SystemTime     uint64
-	TscToSystemMul uint32
-	TscShift       int8
-	_              [3]int8
+	Version    uint32
+	_          uint32
+	TSC        uint64
+	SystemNsec uint64
+	TSCMul     uint32
+	TSCShift   int8
+	_          [3]int8
 }
 
 type vcpuInfo struct {

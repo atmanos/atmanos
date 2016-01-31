@@ -1,19 +1,25 @@
 package runtime
 
 //go:nosplit
-func _nanotime() int64 {
-	var t timeInfo
-	t.load(_atman_shared_info)
+func lfence()
 
-	return t.nanotime()
+var shadowTimeInfo timeInfo
+
+//go:nosplit
+func _nanotime() (ns int64) {
+	systemstack(func() {
+		shadowTimeInfo.load(_atman_shared_info)
+		ns = shadowTimeInfo.nanotime()
+	})
+
+	return ns
 }
 
 //go:nosplit
 func _time_now() (int64, int32) {
-	var t timeInfo
-	t.load(_atman_shared_info)
+	shadowTimeInfo.load(_atman_shared_info)
 
-	return t.timeNow()
+	return shadowTimeInfo.timeNow()
 }
 
 // timeInfo shadows time-related values stored in xenSharedInfo
@@ -22,58 +28,70 @@ type timeInfo struct {
 	BootSec  int64
 	BootNsec int64
 
-	System int64 // ns since system boot / resume
-	TSC    int64 // tsc value of update to System
+	SystemNsec uint64
+	TSC        uint64
+	TSCMul     uint32
+	TSCShift   int8
 
-	TSCMul   int64 // scaling factors to convert TSC to nanoseconds
-	TSCShift uint8
+	Version uint32
 }
 
 // load atomically populates t from info.
 func (t *timeInfo) load(info *xenSharedInfo) {
-	for {
-		var (
-			version   = atomicload(&info.VCPUInfo[0].Time.Version)
-			wcversion = atomicload(&info.WcVersion)
-		)
+	src := &info.VCPUInfo[0].Time
 
-		// The shared data is being updated, try again
-		if version&1 == 1 || wcversion&1 == 1 {
+	if t.Version == atomicload(&src.Version) {
+		return
+	}
+
+	t.BootSec = int64(info.WcSec)
+	t.BootNsec = int64(info.WcNsec)
+
+	for {
+		t.Version = atomicload(&src.Version)
+
+		lfence()
+		t.SystemNsec = src.SystemNsec
+		t.TSC = src.TSC
+		t.TSCMul = src.TSCMul
+		t.TSCShift = src.TSCShift
+		lfence()
+
+		newVersion := atomicload(&src.Version)
+
+		if newVersion&1 == 1 {
 			continue
 		}
 
-		t.BootSec = int64(info.WcSec)
-		t.BootNsec = int64(info.WcNsec)
-		t.System = int64(info.VCPUInfo[0].Time.SystemTime)
-		t.TSC = int64(info.VCPUInfo[0].Time.TscTimestamp)
-		t.TSCMul = int64(info.VCPUInfo[0].Time.TscToSystemMul)
-		t.TSCShift = uint8(info.VCPUInfo[0].Time.TscShift)
-
-		var (
-			newversion   = atomicload(&info.VCPUInfo[0].Time.Version)
-			newwcversion = atomicload(&info.WcVersion)
-		)
-
-		if newversion == version && newwcversion == wcversion {
+		if t.Version == newVersion {
 			return
 		}
 	}
 }
 
 func (t *timeInfo) nsSinceSystem() int64 {
-	var diffTSC = cputicks() - t.TSC
+	diff := uint64(cputicks()) - t.TSC
 
-	return (diffTSC << t.TSCShift) * t.TSCMul
+	if t.TSCShift < 0 {
+		diff >>= uint8(-t.TSCShift)
+	} else {
+		diff <<= uint8(t.TSCShift)
+	}
+
+	diff *= uint64(t.TSCMul)
+	diff >>= 32
+
+	return int64(diff)
 }
 
 func (t *timeInfo) nanotime() int64 {
-	return t.BootSec*1e9 + t.BootNsec + t.System + t.nsSinceSystem()
+	return int64(t.SystemNsec) + t.nsSinceSystem()
 }
 
 func (t *timeInfo) timeNow() (int64, int32) {
 	var (
 		sec  = t.BootSec
-		nsec = t.BootNsec + t.System + t.nsSinceSystem()
+		nsec = t.BootNsec + t.nanotime()
 	)
 
 	// move whole seconds to second counter
