@@ -51,7 +51,7 @@ type xenStartInfo struct {
 	StoreEventchn  uint32
 	_              [4]byte
 	Console        struct {
-		Mfn      uint64 // machine page number of console page
+		Mfn      mfn    // machine page number of console page
 		Eventchn uint32 // event channel
 		_        [4]byte
 	}
@@ -129,6 +129,8 @@ func atmaninit() {
 	println("     cmd_line: ", _atman_start_info.CmdLine[:])
 	println("    first_pfn: ", _atman_start_info.FirstP2mPfn)
 	println("nr_p2m_frames: ", _atman_start_info.NrP2mFrames)
+
+	_atman_console.init()
 
 	println("setting _atman_phys_to_machine_mapping")
 	_atman_phys_to_machine_mapping = *(*[8192]uint64)(unsafe.Pointer(

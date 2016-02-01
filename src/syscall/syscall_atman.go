@@ -98,3 +98,19 @@ func Mkdir(path string, perm uint32) error {
 }
 
 func Exit(code int) {}
+
+// Write writes the contents of b to fd and returns
+// the number of bytes written or an error.
+//
+// If fd is Stdout, b is written with WriteConsole.
+func Write(fd int, b []byte) (n int, err error) {
+	if fd != 1 {
+		return 0, EINVAL
+	}
+
+	return WriteConsole(b), nil
+}
+
+// WriteConsole writes b to the Xen console and
+// returns the number of bytes written.
+func WriteConsole(b []byte) int

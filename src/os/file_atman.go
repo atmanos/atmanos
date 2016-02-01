@@ -1,5 +1,7 @@
 package os
 
+import "syscall"
+
 type File struct {
 	fd      int
 	name    string
@@ -35,8 +37,8 @@ func (*File) pread(b []byte, off int64) (n int, err error) {
 	return 0, ErrNotExist
 }
 
-func (*File) write(b []byte) (n int, err error) {
-	return 0, ErrNotExist
+func (f *File) write(b []byte) (n int, err error) {
+	return syscall.Write(f.fd, b)
 }
 
 func (*File) pwrite(b []byte, off int64) (n int, err error) {
