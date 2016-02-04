@@ -12,6 +12,8 @@ var (
 
 	_atman_start_info  = &xenStartInfo{}
 	_atman_shared_info *xenSharedInfo
+
+	_atman_page_frame_list pageFrameList
 )
 
 //go:nosplit
@@ -57,7 +59,7 @@ type xenStartInfo struct {
 	}
 	PageTableBase     vaddr // virtual address of page directory
 	NrPageTableFrames uint64
-	MfnList           uintptr // virtual address of page-frame list
+	PageFrameList     uintptr // virtual address of page-frame list
 	ModStart          uintptr // virtual address of pre-loaded module
 	ModLen            uint64  // size (bytes) of pre-loaded module
 	CmdLine           [1024]byte
@@ -123,19 +125,20 @@ func atmaninit() {
 	println("  console_evc: ", _atman_start_info.Console.Eventchn)
 	println("      pt_base: ", _atman_start_info.PageTableBase)
 	println(" nr_pt_frames: ", _atman_start_info.NrPageTableFrames)
-	println("     mfn_list: ", _atman_start_info.MfnList)
+	println("     pfn_list: ", _atman_start_info.PageFrameList)
 	println("    mod_start: ", _atman_start_info.ModStart)
 	println("      mod_len: ", _atman_start_info.ModLen)
 	println("     cmd_line: ", _atman_start_info.CmdLine[:])
 	println("    first_pfn: ", _atman_start_info.FirstP2mPfn)
 	println("nr_p2m_frames: ", _atman_start_info.NrP2mFrames)
 
-	_atman_console.init()
+	initSlice(
+		unsafe.Pointer(&_atman_page_frame_list),
+		unsafe.Pointer(_atman_start_info.PageFrameList),
+		int(_atman_start_info.NrPages),
+	)
 
-	println("setting _atman_phys_to_machine_mapping")
-	_atman_phys_to_machine_mapping = *(*[8192]uint64)(unsafe.Pointer(
-		_atman_start_info.MfnList,
-	))
+	_atman_console.init()
 
 	println("mapping _atman_start_info")
 	mapSharedInfo(_atman_start_info.SharedInfoAddr)
@@ -163,12 +166,24 @@ func mapSharedInfo(vaddr uintptr) {
 	_atman_shared_info = (*xenSharedInfo)(unsafe.Pointer(pageAddr))
 }
 
+// initSlice makes the slice s point to array,
+// with a length and capacity of len.
+func initSlice(s, array unsafe.Pointer, len int) {
+	sp := (*slice)(s)
+	sp.array = array
+	sp.len = len
+	sp.cap = len
+}
+
 // memory management
 
-var (
-	// Map of (pseudo-)physical addresses to machine addresses.
-	_atman_phys_to_machine_mapping [8192]uint64
-)
+// pageFrameList is an array of machine frame numbers
+// indexed by page frame numbers.
+type pageFrameList []mfn
+
+func (l pageFrameList) Get(n pfn) mfn {
+	return l[int(n)]
+}
 
 // Entry in level 3, 2, or 1 page table.
 //
@@ -311,7 +326,7 @@ func (n pfn) add(v uint64) pfn {
 }
 
 func (n pfn) mfn() mfn {
-	return mfn(_atman_phys_to_machine_mapping[n])
+	return _atman_page_frame_list.Get(n)
 }
 
 type mfn uintptr
