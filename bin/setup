@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -e
+
+mkdir -p build/
+
+if [ ! -d build/go_bootstrap ]; then
+  GOOS=$(uname | tr '[:upper:]' '[:lower:]')
+  GOARCH=amd64
+  BOOTSTRAP_URL=https://storage.googleapis.com/golang/go1.4.3.$GOOS-$GOARCH.tar.gz
+
+  echo "Fetching bootstrap Go version 1.4.3"
+  curl -sSL "$BOOTSTRAP_URL" | tar -zx -C build/
+  mv build/go build/go_bootstrap
+fi
+
+if [ ! -d build/go ]; then
+  echo "Fetching Go source"
+  git clone \
+    --depth 1 \
+    --branch go1.5.2 \
+    https://github.com/golang/go build/go
+fi
+
+make clean patch build

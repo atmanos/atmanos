@@ -17,22 +17,9 @@ GOOS=atman go build
 
 ## Building AtmanOS
 
-The parent directory of AtmanOS should look like:
-
-```
-$ ls ../
-atmanos/
-go/
-go_bootstrap/
-```
-
-Where:
-
-  * `go/` should be a clone of [Go](https://github.com/golang/go). The `go1.5.2`
-    tag should be checked out.
-  * `go_bootstrap/` is a precompiled version of [Go 1.4.3](https://golang.org/dl/#go1.4.3)
-
-Then run `make patch` and `make build` to build.
+Build AtmanOS by running `bin/setup`,
+which will download the required dependencies to the build directory
+and then build AtmanOS itself.
 
 ## Example
 

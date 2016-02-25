@@ -10,7 +10,7 @@ KERNEL=${GOBIN:-$HOME/bin}/atman_amd64/$VMNAME
 
 make build
 
-GOOS=atman ../go/bin/go install -a "$PACKAGE"
+GOOS=atman build/go/bin/go install -a "$PACKAGE"
 
 scp "$KERNEL" "$XEN_DEBUG_HOST":~/$VMNAME
 

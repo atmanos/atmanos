@@ -1,5 +1,5 @@
-GOROOT_BOOTSTRAP := $(abspath ../go_bootstrap)
-GOROOT           := $(abspath ../go)
+GOROOT_BOOTSTRAP := $(abspath build/go_bootstrap)
+GOROOT           := $(abspath build/go)
 
 .PHONY: build
 build: $(GOROOT)/bin/go update-stdlib
