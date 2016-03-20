@@ -144,6 +144,8 @@ func atmaninit() {
 	mapSharedInfo(_atman_start_info.SharedInfoAddr)
 
 	_atman_mm.init()
+
+	initEvents()
 }
 
 func mapSharedInfo(vaddr uintptr) {

@@ -70,8 +70,10 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 
 	t.ID = taskid
 	t.Context = Context{
-		rsp: uintptr(stk),
-		rip: funcPC(taskstart),
+		cpuRegisters: cpuRegisters{
+			rsp: uintptr(stk),
+			rip: funcPC(taskstart),
+		},
 	}
 	t.semawaiter.task = t
 
@@ -247,14 +249,17 @@ func (l *TaskList) AddByWakeAt(t *Task) {
 
 // Context describes the state of a task
 // for saving or restoring a task's execution context.
-type Context cpuRegisters
+type Context struct {
+	cpuRegisters
+	tls uintptr
+}
 
 func (c *Context) debug() {
 	print(
 		"Context{",
 		"rsp=", unsafe.Pointer(c.rsp),
 		" rip=", unsafe.Pointer(c.rip),
-		" fs=", unsafe.Pointer(c.fs),
+		" tls=", unsafe.Pointer(c.tls),
 		"}", "\n",
 	)
 }
@@ -292,8 +297,30 @@ type cpuRegisters struct {
 	rflags uintptr
 	rsp    uintptr
 	ss     uintptr
-	es     uintptr
-	ds     uintptr
-	fs     uintptr
-	gs     uintptr
+}
+
+func (r *cpuRegisters) debug() {
+	print("cpuRegisters<", unsafe.Pointer(r), "> {")
+	print(" r15=", unsafe.Pointer(r.r15))
+	print(" r14=", unsafe.Pointer(r.r14))
+	print(" r13=", unsafe.Pointer(r.r13))
+	print(" r12=", unsafe.Pointer(r.r12))
+	print(" rbp=", unsafe.Pointer(r.rbp))
+	print(" rbx=", unsafe.Pointer(r.rbx))
+	print(" r11=", unsafe.Pointer(r.r11))
+	print(" r10=", unsafe.Pointer(r.r10))
+	print(" r9=", unsafe.Pointer(r.r9))
+	print(" r8=", unsafe.Pointer(r.r8))
+	print(" rax=", unsafe.Pointer(r.rax))
+	print(" rcx=", unsafe.Pointer(r.rcx))
+	print(" rdx=", unsafe.Pointer(r.rdx))
+	print(" rsi=", unsafe.Pointer(r.rsi))
+	print(" rdi=", unsafe.Pointer(r.rdi))
+	print(" code=", unsafe.Pointer(r.code))
+	print(" rip=", unsafe.Pointer(r.rip))
+	print(" cs=", unsafe.Pointer(r.cs))
+	print(" rflags=", unsafe.Pointer(r.rflags))
+	print(" rsp=", unsafe.Pointer(r.rsp))
+	print(" ss=", unsafe.Pointer(r.ss))
+	print(" }\n")
 }

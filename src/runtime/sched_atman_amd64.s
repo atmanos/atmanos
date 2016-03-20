@@ -42,7 +42,7 @@ TEXT ·contextsave(SB),NOSPLIT,$0-16
 	RDMSR
 	SHLQ	$32, DX	// DX <<= 32
 	ADDQ	DX, AX	// AX = DX + AX
-	MOVQ	AX, 184(DI)	// save tls
+	MOVQ	AX, 168(DI)	// save tls
 
 	MOVQ	$0, ret+8(FP)
 	RET
@@ -52,7 +52,7 @@ TEXT ·contextload(SB),NOSPLIT,$0-8
 	MOVQ	ctx+0(FP), DI
 	MOVQ	152(DI), R8	// save sp
 	MOVQ	128(DI), R9	// save ip
-	MOVQ	184(DI), DI
+	MOVQ	168(DI), DI
 	CALL	runtime·settls(SB) // restore tls
 	MOVQ	R8, SP
 	MOVQ	R9, (SP)	// set return address

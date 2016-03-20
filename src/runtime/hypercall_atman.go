@@ -101,3 +101,17 @@ func HYPERVISOR_sched_op(op uintptr, arg unsafe.Pointer) uintptr {
 		0,
 	)
 }
+
+func HYPERVISOR_set_callbacks(eventCallbackAddr, failsafeCallbackAddr uintptr) uintptr {
+	const _HYPERVISOR_set_callbacks = 4
+
+	return hypercall(
+		_HYPERVISOR_set_callbacks,
+		eventCallbackAddr,
+		failsafeCallbackAddr,
+		0,
+		0,
+		0,
+		0,
+	)
+}
