@@ -15,13 +15,14 @@ update-stdlib:
 	cd $(GOROOT) && git clean -q -df -- src/
 	rsync -a src/ $(GOROOT)/src/
 
+PATCHES = $(shell find $(PWD)/patches -name "*.diff")
 .PHONY: patch
 patch:
-	find patches/ -name "*.diff" -exec git apply --directory=$(GOROOT) {} \;
+	cd $(GOROOT) && git apply $(PATCHES)
 
 .PHONY: unpatch
 unpatch:
-	find patches/ -name "*.diff" -exec git apply -R --directory=$(GOROOT) {} \;
+	cd $(GOROOT) && git apply -R $(PATCHES)
 
 .PHONY: clean
 clean:
