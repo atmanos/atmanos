@@ -1,0 +1,5 @@
+#!/bin/sh
+
+VMNAME=$1
+
+sudo xl console $VMNAME

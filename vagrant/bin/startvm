@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+VMNAME=$1
+
+sudo xl destroy $VMNAME 2>/dev/null
+sudo xl dmesg -c &>/dev/null
+sudo xl create -e $HOME/atman/template.xl \
+  "name = '$VMNAME'" \
+  "kernel = '$HOME/atman/images/$VMNAME'"

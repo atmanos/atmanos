@@ -1,0 +1,5 @@
+#!/bin/sh
+
+GOROOT=build/go
+
+GOOS=atman exec "$GOROOT"/bin/go "$@"

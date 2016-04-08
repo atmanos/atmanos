@@ -3,18 +3,11 @@
 set -e
 
 PACKAGE=$1
-
-XEN_DEBUG_HOST=xen-debug
 VMNAME=$(basename $PACKAGE)
-KERNEL=${GOBIN:-$HOME/bin}/atman_amd64/$VMNAME
 
 make build
 
-GOOS=atman build/go/bin/go install -a "$PACKAGE"
+bin/atman build -o vagrant/images/$VMNAME -a "$PACKAGE"
 
-scp "$KERNEL" "$XEN_DEBUG_HOST":~/$VMNAME
-
-ssh "$XEN_DEBUG_HOST" \
-  "sudo xl destroy $VMNAME 2>/dev/null ; \
-   sudo xl dmesg -c &>/dev/null ; \
-   sudo xl create atman.xl \"name = '$VMNAME'\" \"kernel = '$VMNAME'\""
+vagrant rsync
+vagrant ssh -- startvm $VMNAME

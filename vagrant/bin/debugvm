@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -e
+
+VMNAME=$1
+domid=$(sudo xl domid $VMNAME)
+
+sudo /usr/lib/xen-4.4/bin/gdbsx -a $domid 64 9999 &
+sleep 1
+gdb -ex "target remote localhost:9999" $HOME/atman/images/$VMNAME
