@@ -88,6 +88,20 @@ func HYPERVISOR_mmuext_op(ops []mmuExtOp, domid uint16) uintptr {
 	)
 }
 
+func HYPERVISOR_set_timer_op(timeout int64) uintptr {
+	const _HYPERVISOR_set_timer_op = 15
+
+	return hypercall(
+		_HYPERVISOR_set_timer_op,
+		uintptr(timeout),
+		0,
+		0,
+		0,
+		0,
+		0,
+	)
+}
+
 func HYPERVISOR_sched_op(op uintptr, arg unsafe.Pointer) uintptr {
 	const _HYPERVISOR_sched_op = 29
 

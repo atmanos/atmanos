@@ -113,7 +113,8 @@ func taskswitch() {
 			panic("No runnable or timed sleep tasks to run")
 		}
 
-		HYPERVISOR_sched_op(0, nil) // yield
+		HYPERVISOR_set_timer_op(tasksleepqueue.Head.WakeAt)
+		HYPERVISOR_sched_op(1, nil) // block
 	}
 
 	taskcurrent = tasknext
