@@ -7,18 +7,24 @@ var _atman_console console
 type console struct {
 	port uint32
 
-	*consoleRing
+	ring *consoleRing
 }
 
 func (c *console) init() {
 	c.port = _atman_start_info.Console.Eventchn
-	c.consoleRing = (*consoleRing)(unsafe.Pointer(
+	c.ring = (*consoleRing)(unsafe.Pointer(
 		_atman_start_info.Console.Mfn.pfn().vaddr(),
 	))
 }
 
 func (c console) notify() {
 	eventChanSend(c.port)
+}
+
+func (c console) write(b []byte) int {
+	n := c.ring.write(b)
+	c.notify()
+	return int(n)
 }
 
 const (
@@ -46,13 +52,22 @@ func (r *consoleRing) write(b []byte) uint32 {
 	)
 
 	for _, c := range b {
-		if consoleRingOutSize-prod-cons == 0 {
+		size := uint32(1)
+		if c == '\n' {
+			size = 2
+		}
+
+		if consoleRingOutSize-prod-cons < size {
 			break
 		}
 
-		i := prod & (consoleRingOutSize - 1)
-		r.out[i] = c
+		if c == '\n' {
+			r.writeByteAt('\r', prod)
+			prod++
+			sent++
+		}
 
+		r.writeByteAt(c, prod)
 		prod++
 		sent++
 	}
@@ -61,9 +76,12 @@ func (r *consoleRing) write(b []byte) uint32 {
 	return sent
 }
 
+func (r *consoleRing) writeByteAt(b byte, off uint32) {
+	i := off & (consoleRingOutSize - 1)
+	r.out[i] = b
+}
+
 //go:linkname syscall_WriteConsole syscall.WriteConsole
 func syscall_WriteConsole(b []byte) int {
-	n := int(_atman_console.write(b))
-	_atman_console.notify()
-	return n
+	return _atman_console.write(b)
 }

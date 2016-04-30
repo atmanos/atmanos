@@ -112,6 +112,8 @@ type vcpuInfo struct {
 }
 
 func atmaninit() {
+	_atman_console.init()
+
 	println("Atman OS")
 	println("     ptr_size: ", ptrSize)
 	println("   start_info: ", _atman_start_info)
@@ -137,8 +139,6 @@ func atmaninit() {
 		unsafe.Pointer(_atman_start_info.PageFrameList),
 		int(_atman_start_info.NrPages),
 	)
-
-	_atman_console.init()
 
 	println("mapping _atman_start_info")
 	mapSharedInfo(_atman_start_info.SharedInfoAddr)
