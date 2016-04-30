@@ -8,7 +8,6 @@ var shadowTimeInfo timeInfo
 //go:nosplit
 func _nanotime() (ns int64) {
 	systemstack(func() {
-		shadowTimeInfo.load(_atman_shared_info)
 		ns = shadowTimeInfo.nanotime()
 	})
 
@@ -17,53 +16,66 @@ func _nanotime() (ns int64) {
 
 //go:nosplit
 func _time_now() (int64, int32) {
-	shadowTimeInfo.load(_atman_shared_info)
-
 	return shadowTimeInfo.timeNow()
 }
 
 // timeInfo shadows time-related values stored in xenSharedInfo
 // and vcpuTimeInfo structures.
 type timeInfo struct {
-	BootSec  int64
-	BootNsec int64
+	BootVersion uint32
+	BootSec     int64
+	BootNsec    int64
 
-	SystemNsec uint64
-	TSC        uint64
-	TSCMul     uint32
-	TSCShift   int8
-
-	Version uint32
+	SystemVersion uint32
+	SystemNsec    uint64
+	TSC           uint64
+	TSCMul        uint32
+	TSCShift      int8
 }
 
-// load atomically populates t from info.
-func (t *timeInfo) load(info *xenSharedInfo) {
-	src := &info.VCPUInfo[0].Time
+// checkBootTime ensures the boot (wall) clock values are up-to-date.
+func (t *timeInfo) checkBootTime() {
+	src := _atman_shared_info
 
-	if t.Version == atomicload(&src.Version) {
-		return
-	}
+	t.check(&t.BootVersion, &src.WcVersion, func() {
+		t.BootSec = int64(src.WcSec)
+		t.BootNsec = int64(src.WcNsec)
+	})
+}
 
-	t.BootSec = int64(info.WcSec)
-	t.BootNsec = int64(info.WcNsec)
+// checkMonotonicTime ensures the system clock values are up-to-date.
+func (t *timeInfo) checkSystemTime() {
+	src := &_atman_shared_info.VCPUInfo[0].Time
 
-	for {
-		t.Version = atomicload(&src.Version)
-
-		lfence()
+	t.check(&t.SystemVersion, &src.Version, func() {
 		t.SystemNsec = src.SystemNsec
 		t.TSC = src.TSC
 		t.TSCMul = src.TSCMul
 		t.TSCShift = src.TSCShift
+	})
+}
+
+// check atomically syncronizes the shadow and src versions
+// calling update if the versions disagree.
+func (t *timeInfo) check(shadow, src *uint32, update func()) {
+	if *shadow == atomicload(src) {
+		return
+	}
+
+	for {
+		*shadow = atomicload(src)
+
+		lfence()
+		update()
 		lfence()
 
-		newVersion := atomicload(&src.Version)
+		new := atomicload(src)
 
-		if newVersion&1 == 1 {
+		if new&1 == 1 {
 			continue
 		}
 
-		if t.Version == newVersion {
+		if *shadow == new {
 			return
 		}
 	}
@@ -85,10 +97,14 @@ func (t *timeInfo) nsSinceSystem() int64 {
 }
 
 func (t *timeInfo) nanotime() int64 {
+	t.checkSystemTime()
+
 	return int64(t.SystemNsec) + t.nsSinceSystem()
 }
 
 func (t *timeInfo) timeNow() (int64, int32) {
+	t.checkBootTime()
+
 	var (
 		sec  = t.BootSec
 		nsec = t.BootNsec + t.nanotime()
