@@ -19,6 +19,10 @@ var (
 	tasksleepqueue TaskList
 )
 
+func init() {
+	taskcurrent.semawaiter.task = taskcurrent
+}
+
 type Task struct {
 	ID int
 
