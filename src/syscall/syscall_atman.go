@@ -18,6 +18,7 @@ const (
 	EISDIR
 	ENOTDIR
 	ENAMETOOLONG
+	EPIPE
 )
 
 const (
@@ -109,6 +110,11 @@ func Write(fd int, b []byte) (n int, err error) {
 	}
 
 	return WriteConsole(b), nil
+}
+
+// Read is currently unsupported.
+func Read(fd int, b []byte) (n int, err error) {
+	return 0, EINVAL
 }
 
 // WriteConsole writes b to the Xen console and

@@ -2,6 +2,8 @@ package os
 
 import "syscall"
 
+const DevNull = "/dev/null"
+
 type File struct {
 	fd      int
 	name    string
@@ -86,4 +88,12 @@ func rename(oldname, newname string) error {
 
 func sameFile(fs1, fs2 *fileStat) bool {
 	return false
+}
+
+func Readlink(name string) (string, error) {
+	return name, nil
+}
+
+func TempDir() string {
+	return "/tmp"
 }
