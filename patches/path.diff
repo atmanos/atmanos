@@ -1,0 +1,13 @@
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index d241d78..df1951a 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris atman
+ 
+ package filepath
+ 

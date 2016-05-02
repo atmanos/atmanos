@@ -27,6 +27,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$0-4
 	MOVQ	$runtime·tasksleepus(SB), AX
 	JMP	AX
 
+TEXT runtime·open(SB),NOSPLIT,$0
+	RET
+
+TEXT runtime·read(SB),NOSPLIT,$0
+	RET
+
+TEXT runtime·closefd(SB),NOSPLIT,$0
+	RET
+
 TEXT runtime·write(SB),NOSPLIT,$0-28
 	RET
 
