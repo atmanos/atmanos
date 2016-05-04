@@ -143,6 +143,12 @@ func tasksleep(ns int64) (rem int64) {
 		taskcurrent.WakeAt = sleepstart + ns
 	}
 
+	kprintString("tasksleep: Task[")
+	kprintUint(uint64(taskcurrent.ID))
+	kprintString("] sleep(")
+	kprintInt(ns)
+	kprintString(")\n")
+
 	tasksleepqueue.AddByWakeAt(taskcurrent)
 	taskswitch()
 
@@ -161,6 +167,10 @@ func tasksleep(ns int64) (rem int64) {
 
 // taskwake moves task from the sleep to the run queue.
 func taskwake(task *Task) {
+	kprintString("taskwake: Task[")
+	kprintUint(uint64(task.ID))
+	kprintString("]\n")
+
 	tasksleepqueue.Remove(task)
 	taskready(task)
 }
