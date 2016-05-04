@@ -1,0 +1,22 @@
+#!/bin/sh
+
+KERNEL=$1
+
+mkdir -p build/ec2-image/boot/grub
+
+cat >build/ec2-image/boot/grub/menu.lst <<EOF
+default 0
+timeout 0
+hiddenmenu
+
+title AtmanOS Kernel
+root (hd0)
+kernel /boot/kernel
+EOF
+
+cp $KERNEL build/ec2-image/boot
+
+# hdiutil makehybrid -o kernel.iso -iso build/ec2-image
+# aws s3 cp kernel.iso s3://atmanos/hello.iso
+# $ aws ec2 import-image --description "Windows 2008 OVA" --disk-containers file://containers.json
+

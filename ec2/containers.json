@@ -1,0 +1,8 @@
+[{
+    "Description": "First CLI task",
+    "Format": "raw",
+    "UserBucket": {
+        "S3Bucket": "atmanos",
+        "S3Key": "hello.iso"
+    }
+}]

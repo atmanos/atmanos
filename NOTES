@@ -2,3 +2,5 @@ http://apple.stackexchange.com/questions/60029/how-to-create-a-disk-image-from-t
 https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/hdiutil.1.html#//apple_ref/doc/man/1/hdiutil
 http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/UsingImportImage.html
 http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/UserProvidedKernels.html
+
+brew install ec2-ami-tools
