@@ -91,6 +91,8 @@ func semasleep(ns int64) int32 {
 		waiter.addr = addr
 		waiter.up = false
 
+		print("semasleep: Task[", taskcurrent.ID, "] semasleep(", ns, ") on ", unsafe.Pointer(addr), "\n")
+
 		s.lock()
 
 		if atomicload(addr) > 0 {
@@ -137,6 +139,8 @@ func semawakeup(mp *m) {
 		addr = &mp.waitsemacount
 		s    = &sleeptable[sleeptablekey(addr)]
 	)
+
+	print("semawakeup: Task[", taskcurrent.ID, "] semawakeup() on ", unsafe.Pointer(addr), "\n")
 
 	s.lock()
 

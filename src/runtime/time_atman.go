@@ -37,22 +37,29 @@ type timeInfo struct {
 func (t *timeInfo) checkBootTime() {
 	src := _atman_shared_info
 
-	t.check(&t.BootVersion, &src.WcVersion, func() {
-		t.BootSec = int64(src.WcSec)
-		t.BootNsec = int64(src.WcNsec)
-	})
+	t.check(&t.BootVersion, &src.WcVersion, t.updateBootTime)
+}
+
+func (t *timeInfo) updateBootTime() {
+	src := _atman_shared_info
+	t.BootSec = int64(src.WcSec)
+	t.BootNsec = int64(src.WcNsec)
 }
 
 // checkMonotonicTime ensures the system clock values are up-to-date.
 func (t *timeInfo) checkSystemTime() {
 	src := &_atman_shared_info.VCPUInfo[0].Time
 
-	t.check(&t.SystemVersion, &src.Version, func() {
-		t.SystemNsec = src.SystemNsec
-		t.TSC = src.TSC
-		t.TSCMul = src.TSCMul
-		t.TSCShift = src.TSCShift
-	})
+	t.check(&t.SystemVersion, &src.Version, t.updateSystemTime)
+}
+
+func (t *timeInfo) updateSystemTime() {
+	src := &_atman_shared_info.VCPUInfo[0].Time
+
+	t.SystemNsec = src.SystemNsec
+	t.TSC = src.TSC
+	t.TSCMul = src.TSCMul
+	t.TSCShift = src.TSCShift
 }
 
 // check atomically syncronizes the shadow and src versions

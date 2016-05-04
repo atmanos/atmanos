@@ -17,6 +17,8 @@ var (
 
 	taskrunqueue   TaskList
 	tasksleepqueue TaskList
+
+	errNoRunnableTasks = []byte("No runnable or timed sleep tasks to run")
 )
 
 func init() {
@@ -107,14 +109,15 @@ func taskswitch() {
 	)
 
 	for {
-		taskwakeready(nanotime())
+		now := nanotime()
+		taskwakeready(now)
 
 		if tasknext = taskrunqueue.Head; tasknext != nil {
 			break
 		}
 
 		if tasksleepqueue.Head == nil || tasksleepqueue.Head.WakeAt == -1 {
-			panic("No runnable or timed sleep tasks to run")
+			crash()
 		}
 
 		HYPERVISOR_set_timer_op(tasksleepqueue.Head.WakeAt)
@@ -190,8 +193,7 @@ func taskwakeready(at int64) {
 }
 
 func taskexit() {
-	throw("taskexit()")
-	panic("taskexit()")
+	crash()
 }
 
 type TaskList struct {
