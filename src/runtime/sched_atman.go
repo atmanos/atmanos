@@ -109,6 +109,34 @@ func taskswitch() {
 	)
 
 	for {
+		// It seems like it's possible right now for:
+		// Task0 wakes Task 1 and 2
+		// Task 0 sleeps for a very short time
+		// Task 0 is ready when we get into the switch
+		// Task 0 becomes the next task to execute
+		// Sample trace:
+		//		Task[1] semasleep(60000000000) on 0xc8200142d8
+		// 		Task[1] tasksleep(60000000000)
+		// 		Task[1] switch(2)
+		// 		Task[2] semawakeup() on0x793178
+		// 		Task[2] taskwake(0)
+		// 		Task[2] semasleep(-1) on 0xc820014758
+		// 		Task[2] tasksleep(-1)
+		// 		Task[2] switch(0)
+		// 		Task[0] semawakeup() on0xc8200142d8
+		// 		Task[0] taskwake(1)
+		// 		Task[0] semawakeup() on0xc820014758
+		// 		Task[0] taskwake(2)
+		// 		Task[0] semasleep(100000) on 0x793178
+		// 		Task[0] tasksleep(100000)
+		// 		Task[0] taskwake(0)
+		// 		Task[0] switch(0)
+		// 		Task[0] semasleep(100000) on 0x793178
+		// 		Task[0] tasksleep(100000)
+		// 		Task[0] switch(0)
+		// 		Task[0] semasleep(100000) on 0x793178
+		// 		Task[0] tasksleep(100000)
+		// 		Task[0] block() now=195440709393142 until=195440709468377
 		now := nanotime()
 		taskwakeready(now)
 
@@ -117,8 +145,17 @@ func taskswitch() {
 		}
 
 		if tasksleepqueue.Head == nil || tasksleepqueue.Head.WakeAt == -1 {
+			kprintString("Sleep queue empty, crashing!\n")
 			crash()
 		}
+
+		kprintString("Task[")
+		kprintUint(uint64(taskprev.ID))
+		kprintString("] block() now=")
+		kprintInt(now)
+		kprintString(" until=")
+		kprintInt(tasksleepqueue.Head.WakeAt)
+		kprintString("\n")
 
 		HYPERVISOR_set_timer_op(tasksleepqueue.Head.WakeAt)
 		HYPERVISOR_sched_op(1, nil) // block
@@ -126,6 +163,12 @@ func taskswitch() {
 
 	taskcurrent = tasknext
 	taskrunqueue.Remove(taskcurrent)
+
+	kprintString("Task[")
+	kprintUint(uint64(taskprev.ID))
+	kprintString("] switch(")
+	kprintUint(uint64(taskcurrent.ID))
+	kprintString(")\n")
 
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
 }
@@ -150,9 +193,9 @@ func tasksleep(ns int64) (rem int64) {
 		taskcurrent.WakeAt = sleepstart + ns
 	}
 
-	kprintString("tasksleep: Task[")
+	kprintString("Task[")
 	kprintUint(uint64(taskcurrent.ID))
-	kprintString("] sleep(")
+	kprintString("] tasksleep(")
 	kprintInt(ns)
 	kprintString(")\n")
 
@@ -174,9 +217,11 @@ func tasksleep(ns int64) (rem int64) {
 
 // taskwake moves task from the sleep to the run queue.
 func taskwake(task *Task) {
-	kprintString("taskwake: Task[")
+	kprintString("Task[")
+	kprintUint(uint64(taskcurrent.ID))
+	kprintString("] taskwake(")
 	kprintUint(uint64(task.ID))
-	kprintString("]\n")
+	kprintString(")\n")
 
 	tasksleepqueue.Remove(task)
 	taskready(task)

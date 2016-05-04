@@ -19,7 +19,7 @@ func goenvs() {}
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
-	if true {
+	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
 	}
 
@@ -36,22 +36,22 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 func resetcpuprofiler(hz int32) {}
 
 func minit() {
-	println("minit()")
+	// println("minit()")
 }
 
 //go:nosplit
 func unminit() {
-	println("unminit()")
+	// println("unminit()")
 }
 
 //go:nosplit
 func mpreinit(mp *m) {
-	print("mpreinit(", unsafe.Pointer(mp), ")", "\n")
+	// print("mpreinit(", unsafe.Pointer(mp), ")", "\n")
 }
 
 //go:nosplit
 func msigsave(mp *m) {
-	print("msigsave(", unsafe.Pointer(mp), ")", "\n")
+	// print("msigsave(", unsafe.Pointer(mp), ")", "\n")
 }
 
 //go:nosplit
@@ -91,7 +91,13 @@ func semasleep(ns int64) int32 {
 		waiter.addr = addr
 		waiter.up = false
 
-		print("semasleep: Task[", taskcurrent.ID, "] semasleep(", ns, ") on ", unsafe.Pointer(addr), "\n")
+		kprintString("Task[")
+		kprintUint(uint64(taskcurrent.ID))
+		kprintString("] semasleep(")
+		kprintInt(ns)
+		kprintString(") on ")
+		kprintPointer(unsafe.Pointer(addr))
+		kprintString("\n")
 
 		s.lock()
 
@@ -140,7 +146,11 @@ func semawakeup(mp *m) {
 		s    = &sleeptable[sleeptablekey(addr)]
 	)
 
-	print("semawakeup: Task[", taskcurrent.ID, "] semawakeup() on ", unsafe.Pointer(addr), "\n")
+	kprintString("Task[")
+	kprintUint(uint64(taskcurrent.ID))
+	kprintString("] semawakeup() on")
+	kprintPointer(unsafe.Pointer(addr))
+	kprintString("\n")
 
 	s.lock()
 
