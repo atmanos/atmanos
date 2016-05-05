@@ -2,10 +2,14 @@ package runtime
 
 import "unsafe"
 
+//go:nowritebarrier
 func kprintString(s string) {
-	_atman_console.write(bytes(s))
+	var buf [100]byte
+	copy(buf[:], s)
+	_atman_console.write(buf[:len(s)])
 }
 
+//go:nowritebarrier
 func kprintUint(v uint64) {
 	var buf [100]byte
 	i := len(buf)
@@ -19,6 +23,7 @@ func kprintUint(v uint64) {
 	_atman_console.write(buf[i:])
 }
 
+//go:nowritebarrier
 func kprintInt(v int64) {
 	if v < 0 {
 		kprintString("-")
@@ -28,6 +33,7 @@ func kprintInt(v int64) {
 	kprintUint(uint64(v))
 }
 
+//go:nowritebarrier
 func kprintHex(v uint64) {
 	const dig = "0123456789abcdef"
 	var buf [100]byte
@@ -46,6 +52,7 @@ func kprintHex(v uint64) {
 	_atman_console.write(buf[i:])
 }
 
+//go:nowritebarrier
 func kprintPointer(p unsafe.Pointer) {
 	kprintHex(uint64(uintptr(p)))
 }

@@ -77,65 +77,71 @@ func semacreate() uintptr {
 // If ns >= 0, try to acquire m->waitsema for at most ns nanoseconds.
 // Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
 //go:nosplit
+//go:nowritebarrier
 func semasleep(ns int64) int32 {
-	_g_ := getg()
 	var ret int32
 
 	systemstack(func() {
-		var (
-			addr   = &_g_.m.waitsemacount
-			waiter = &taskcurrent.semawaiter
-			s      = &sleeptable[sleeptablekey(addr)]
-		)
-
-		waiter.addr = addr
-		waiter.up = false
-
-		kprintString("Task[")
-		kprintUint(uint64(taskcurrent.ID))
-		kprintString("] semasleep(")
-		kprintInt(ns)
-		kprintString(") on ")
-		kprintPointer(unsafe.Pointer(addr))
-		kprintString("\n")
-
-		s.lock()
-
-		if atomicload(addr) > 0 {
-			xadd(addr, -1)
-			s.unlock()
-
-			ret = 0
-			return
-		}
-
-		s.add(waiter)
-
-		for !waiter.up {
-			s.unlock()
-			ns = tasksleep(ns)
-			s.lock()
-
-			if ns == 0 {
-				break
-			}
-		}
-
-		if !waiter.up {
-			s.remove(waiter)
-		}
-
-		s.unlock()
-
-		if waiter.up {
-			ret = 0
-			return
-		}
-
-		ret = -1
+		ret = semasleepInternal(ns)
 	})
 
 	return ret
+}
+
+//go:nowritebarrier
+func semasleepInternal(ns int64) int32 {
+	_g_ := getg()
+
+	var (
+		addr   = &_g_.m.waitsemacount
+		waiter = &taskcurrent.semawaiter
+		s      = &sleeptable[sleeptablekey(addr)]
+	)
+
+	atomicstorep1(unsafe.Pointer(&waiter.addr), unsafe.Pointer(addr))
+	// waiter.addr = addr
+	waiter.up = false
+
+	kprintString("Task[")
+	kprintUint(uint64(taskcurrent.ID))
+	kprintString("] semasleep(")
+	kprintInt(ns)
+	kprintString(") on ")
+	kprintPointer(unsafe.Pointer(addr))
+	kprintString("\n")
+
+	s.lock()
+
+	if atomicload(addr) > 0 {
+		xadd(addr, -1)
+		s.unlock()
+
+		return 0
+	}
+
+	s.add(waiter)
+
+	for !waiter.up {
+		s.unlock()
+		ns = tasksleep(ns)
+		s.lock()
+
+		if ns == 0 {
+			break
+		}
+	}
+
+	if !waiter.up {
+		s.remove(waiter)
+	}
+
+	s.unlock()
+
+	if waiter.up {
+		return 0
+	}
+
+	return -1
 }
 
 // Wake up mp, which is or will soon be sleeping on mp->waitsema.
@@ -219,30 +225,32 @@ func (s *sema) removeWaiterOn(addr *uint32) *semawaiter {
 	return nil
 }
 
+//go:nowritebarrier
 func (s *sema) remove(w *semawaiter) {
 	if w.prev != nil {
-		w.prev.next = w.next
+		atomicstorep1(unsafe.Pointer(&w.prev.next), unsafe.Pointer(w.next))
 	} else {
-		s.head = w.next
+		atomicstorep1(unsafe.Pointer(&s.head), unsafe.Pointer(w.next))
 	}
 
 	if w.next != nil {
-		w.next.prev = w.prev
+		atomicstorep1(unsafe.Pointer(&w.next.prev), unsafe.Pointer(w.prev))
 	} else {
-		s.tail = w.prev
+		atomicstorep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w.prev))
 	}
 }
 
+//go:nowritebarrier
 func (s *sema) add(w *semawaiter) {
 	if s.tail != nil {
-		s.tail.next = w
-		w.prev = s.tail
+		atomicstorep1(unsafe.Pointer(&s.tail.next), unsafe.Pointer(w))
+		atomicstorep1(unsafe.Pointer(&w.prev), unsafe.Pointer(s.tail))
 	} else {
-		s.head = w
-		w.prev = nil
+		atomicstorep1(unsafe.Pointer(&s.head), unsafe.Pointer(w))
+		atomicstorep1(unsafe.Pointer(&w.prev), nil)
 	}
 
-	s.tail = w
+	atomicstorep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w))
 	w.next = nil
 }
 

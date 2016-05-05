@@ -3,6 +3,12 @@ package runtime
 //go:nosplit
 func lfence()
 
+//go:nosplit
+func mfence()
+
+//go:nosplit
+func sfence()
+
 var shadowTimeInfo timeInfo
 
 //go:nosplit

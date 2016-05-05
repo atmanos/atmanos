@@ -38,7 +38,11 @@ type Task struct {
 }
 
 func (t *Task) debug() {
-	println("Task{ID: ", t.ID, ", WakeAt: ", t.WakeAt, "}")
+	kprintString("Task{ID: ")
+	kprintUint(uint64(t.ID))
+	kprintString(", WakeAt: ")
+	kprintInt(t.WakeAt)
+	kprintString("}\n")
 }
 
 // taskcreate spawns a new task,
@@ -139,6 +143,11 @@ func taskswitch() {
 		// 		Task[0] block() now=195440709393142 until=195440709468377
 		now := nanotime()
 		taskwakeready(now)
+
+		kprintString("taskrunqueue: ")
+		taskrunqueue.debug()
+		kprintString("tasksleepqueue: ")
+		tasksleepqueue.debug()
 
 		if tasknext = taskrunqueue.Head; tasknext != nil {
 			break
@@ -246,12 +255,12 @@ type TaskList struct {
 }
 
 func (l *TaskList) debug() {
-	println("[")
+	kprintString("[\n")
 	for t := l.Head; t != nil; t = t.Next {
-		print("  ")
+		kprintString("  ")
 		t.debug()
 	}
-	println("]")
+	kprintString("]\n")
 }
 
 func (l *TaskList) Add(t *Task) {

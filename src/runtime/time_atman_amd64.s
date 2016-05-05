@@ -1,3 +1,11 @@
 TEXT ·lfence(SB),NOSPLIT,$0
 	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
 	RET
+
+TEXT ·sfence(SB),NOSPLIT,$0
+	SFENCE
+	RET
+
+TEXT ·mfence(SB),NOSPLIT,$0
+	MFENCE
+	RET

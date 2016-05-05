@@ -18,7 +18,10 @@ func initEvents() {
 func clearbit(addr *uint64, n uint32)
 
 func eventChanSend(port uint32) {
-	op := struct{ port uint32 }{port: port}
+	op := struct {
+		port uint32
+		_    uint32
+	}{port: port}
 
 	ret := HYPERVISOR_event_channel_op(
 		4, // EVTCHNOP_send
@@ -26,7 +29,7 @@ func eventChanSend(port uint32) {
 	)
 
 	if ret != 0 {
-		println("HYPERVISOR_event_channel_op returned", ret)
+		crash()
 	}
 }
 

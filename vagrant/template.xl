@@ -1,4 +1,4 @@
 vcpus = 1
-memory = 16
+memory = 32
 
 on_crash = 'preserve'

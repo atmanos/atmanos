@@ -17,14 +17,26 @@ func (c *console) init() {
 	))
 }
 
-func (c console) notify() {
+//go:nowritebarrier
+func (c *console) notify() {
 	eventChanSend(c.port)
 }
 
-func (c console) write(b []byte) int {
-	n := c.ring.write(b)
-	c.notify()
-	return int(n)
+//go:nowritebarrier
+func (c *console) write(b []byte) int {
+	for {
+		n := c.ring.write(b)
+
+		if n == 0 && len(b) > 0 {
+			eventChanSend(c.port)
+			// HYPERVISOR_sched_op(0, nil) // yield?
+			HYPERVISOR_set_timer_op(nanotime() + 1000)
+			HYPERVISOR_sched_op(1, nil) // block
+			continue
+		}
+		c.notify()
+		return int(n)
+	}
 }
 
 const (
@@ -43,6 +55,7 @@ type consoleRing struct {
 	outProducerPos uint32
 }
 
+//go:nowritebarrier
 func (r *consoleRing) write(b []byte) uint32 {
 	var (
 		sent = uint32(0)
@@ -51,13 +64,17 @@ func (r *consoleRing) write(b []byte) uint32 {
 		prod = atomicload(&r.outProducerPos)
 	)
 
+	if prod-cons > consoleRingOutSize {
+		crash()
+	}
+
 	for _, c := range b {
 		size := uint32(1)
 		if c == '\n' {
 			size = 2
 		}
 
-		if consoleRingOutSize-prod-cons < size {
+		if consoleRingOutSize-(prod-cons) < size {
 			break
 		}
 
@@ -73,9 +90,11 @@ func (r *consoleRing) write(b []byte) uint32 {
 	}
 
 	atomicstore(&r.outProducerPos, prod)
+
 	return sent
 }
 
+//go:nowritebarrier
 func (r *consoleRing) writeByteAt(b byte, off uint32) {
 	i := off & (consoleRingOutSize - 1)
 	r.out[i] = b
