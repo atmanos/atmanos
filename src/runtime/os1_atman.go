@@ -92,15 +92,7 @@ func semasleep(ns int64) int32 {
 func semasleepInternal(ns int64) int32 {
 	_g_ := getg()
 
-	var (
-		addr   = &_g_.m.waitsemacount
-		waiter = &taskcurrent.semawaiter
-		s      = &sleeptable[sleeptablekey(addr)]
-	)
-
-	atomicstorep1(unsafe.Pointer(&waiter.addr), unsafe.Pointer(addr))
-	// waiter.addr = addr
-	waiter.up = false
+	var addr = &_g_.m.waitsemacount
 
 	kprintString("Task[")
 	kprintUint(uint64(taskcurrent.ID))
@@ -110,42 +102,35 @@ func semasleepInternal(ns int64) int32 {
 	kprintPointer(unsafe.Pointer(addr))
 	kprintString("\n")
 
-	s.lock()
-
-	if atomicload(addr) > 0 {
-		xadd(addr, -1)
-		s.unlock()
-
+	if *addr > 0 {
+		*addr = 0
+		// acquired
 		return 0
 	}
+
+	// need to sleep
+	var s = &sleeptable[sleeptablekey(addr)]
+	var waiter = &taskcurrent.semawaiter
+
+	atomicstorep1(unsafe.Pointer(&waiter.addr), unsafe.Pointer(addr))
+	// waiter.addr = addr
+	waiter.up = false
 
 	s.add(waiter)
-
-	for !waiter.up {
-		s.unlock()
-		ns = tasksleep(ns)
-		s.lock()
-
-		if ns == 0 {
-			break
-		}
-	}
+	tasksleep(ns)
 
 	if !waiter.up {
+		// interrupted or timed out
 		s.remove(waiter)
+		return -1
 	}
 
-	s.unlock()
-
-	if waiter.up {
-		return 0
-	}
-
-	return -1
+	return 0
 }
 
 // Wake up mp, which is or will soon be sleeping on mp->waitsema.
 //go:nosplit
+//go:nowritebarrier
 func semawakeup(mp *m) {
 	var (
 		addr = &mp.waitsemacount
@@ -158,17 +143,18 @@ func semawakeup(mp *m) {
 	kprintPointer(unsafe.Pointer(addr))
 	kprintString("\n")
 
-	s.lock()
-
 	waiter := s.removeWaiterOn(addr)
+
 	if waiter == nil {
-		xadd(addr, 1)
+		*addr = 1
 	} else {
 		waiter.up = true
-		taskwake(waiter.task)
-	}
 
-	s.unlock()
+		// Task may have been woken up based on a timer, but not yet run.
+		if waiter.task.WakeAt != 0 {
+			taskwake(waiter.task)
+		}
+	}
 }
 
 var (
