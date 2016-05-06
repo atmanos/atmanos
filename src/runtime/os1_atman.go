@@ -94,13 +94,15 @@ func semasleepInternal(ns int64) int32 {
 
 	var addr = &_g_.m.waitsemacount
 
-	kprintString("Task[")
-	kprintUint(uint64(taskcurrent.ID))
-	kprintString("] semasleep(")
-	kprintInt(ns)
-	kprintString(") on ")
-	kprintPointer(unsafe.Pointer(addr))
-	kprintString("\n")
+	if atmantraceenabled {
+		kprintString("Task[")
+		kprintUint(uint64(taskcurrent.ID))
+		kprintString("] semasleep(")
+		kprintInt(ns)
+		kprintString(") on ")
+		kprintPointer(unsafe.Pointer(addr))
+		kprintString("\n")
+	}
 
 	if *addr > 0 {
 		*addr = 0
@@ -137,11 +139,13 @@ func semawakeup(mp *m) {
 		s    = &sleeptable[sleeptablekey(addr)]
 	)
 
-	kprintString("Task[")
-	kprintUint(uint64(taskcurrent.ID))
-	kprintString("] semawakeup() on")
-	kprintPointer(unsafe.Pointer(addr))
-	kprintString("\n")
+	if atmantraceenabled {
+		kprintString("Task[")
+		kprintUint(uint64(taskcurrent.ID))
+		kprintString("] semawakeup() on")
+		kprintPointer(unsafe.Pointer(addr))
+		kprintString("\n")
+	}
 
 	waiter := s.removeWaiterOn(addr)
 

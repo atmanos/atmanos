@@ -2,6 +2,8 @@ package runtime
 
 import "unsafe"
 
+const atmantraceenabled = false
+
 // Atman implements a round-robin cooperative scheduler,
 // heavily inspired by libtask.
 
@@ -144,10 +146,12 @@ func taskswitch() {
 		now := nanotime()
 		taskwakeready(now)
 
-		kprintString("taskrunqueue: ")
-		taskrunqueue.debug()
-		kprintString("tasksleepqueue: ")
-		tasksleepqueue.debug()
+		if atmantraceenabled {
+			kprintString("taskrunqueue: ")
+			taskrunqueue.debug()
+			kprintString("tasksleepqueue: ")
+			tasksleepqueue.debug()
+		}
 
 		if tasknext = taskrunqueue.Head; tasknext != nil {
 			break
@@ -158,13 +162,15 @@ func taskswitch() {
 			crash()
 		}
 
-		kprintString("Task[")
-		kprintUint(uint64(taskprev.ID))
-		kprintString("] block() now=")
-		kprintInt(now)
-		kprintString(" until=")
-		kprintInt(tasksleepqueue.Head.WakeAt)
-		kprintString("\n")
+		if atmantraceenabled {
+			kprintString("Task[")
+			kprintUint(uint64(taskprev.ID))
+			kprintString("] block() now=")
+			kprintInt(now)
+			kprintString(" until=")
+			kprintInt(tasksleepqueue.Head.WakeAt)
+			kprintString("\n")
+		}
 
 		HYPERVISOR_set_timer_op(tasksleepqueue.Head.WakeAt)
 		HYPERVISOR_sched_op(1, nil) // block
@@ -173,11 +179,13 @@ func taskswitch() {
 	taskcurrent = tasknext
 	taskrunqueue.Remove(taskcurrent)
 
-	kprintString("Task[")
-	kprintUint(uint64(taskprev.ID))
-	kprintString("] switch(")
-	kprintUint(uint64(taskcurrent.ID))
-	kprintString(")\n")
+	if atmantraceenabled {
+		kprintString("Task[")
+		kprintUint(uint64(taskprev.ID))
+		kprintString("] switch(")
+		kprintUint(uint64(taskcurrent.ID))
+		kprintString(")\n")
+	}
 
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
 }
@@ -202,11 +210,13 @@ func tasksleep(ns int64) (rem int64) {
 		taskcurrent.WakeAt = sleepstart + ns
 	}
 
-	kprintString("Task[")
-	kprintUint(uint64(taskcurrent.ID))
-	kprintString("] tasksleep(")
-	kprintInt(ns)
-	kprintString(")\n")
+	if atmantraceenabled {
+		kprintString("Task[")
+		kprintUint(uint64(taskcurrent.ID))
+		kprintString("] tasksleep(")
+		kprintInt(ns)
+		kprintString(")\n")
+	}
 
 	tasksleepqueue.AddByWakeAt(taskcurrent)
 	taskswitch()
@@ -226,11 +236,13 @@ func tasksleep(ns int64) (rem int64) {
 
 // taskwake moves task from the sleep to the run queue.
 func taskwake(task *Task) {
-	kprintString("Task[")
-	kprintUint(uint64(taskcurrent.ID))
-	kprintString("] taskwake(")
-	kprintUint(uint64(task.ID))
-	kprintString(")\n")
+	if atmantraceenabled {
+		kprintString("Task[")
+		kprintUint(uint64(taskcurrent.ID))
+		kprintString("] taskwake(")
+		kprintUint(uint64(task.ID))
+		kprintString(")\n")
+	}
 
 	tasksleepqueue.Remove(task)
 	taskready(task)

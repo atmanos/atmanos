@@ -5,8 +5,10 @@ import "unsafe"
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {}
 
 func sysUnused(v unsafe.Pointer, n uintptr) {}
-func sysUsed(v unsafe.Pointer, n uintptr)   {}
-func sysFault(v unsafe.Pointer, n uintptr)  {}
+
+func sysUsed(v unsafe.Pointer, n uintptr) {}
+
+func sysFault(v unsafe.Pointer, n uintptr) {}
 
 // sysMap makes n bytes at v readable and writable and adjusts the stats.
 func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
