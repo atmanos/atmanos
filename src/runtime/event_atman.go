@@ -47,8 +47,22 @@ func clearEventChan(port uint32) {
 //
 //go:nosplit
 func enableIRQ() {
+	irqRestore(0)
+}
+
+//go:nosplit
+func irqDisable() uint8 {
 	vcpu := &_atman_shared_info.VCPUInfo[0]
-	vcpu.UpcallMask = 0
+
+	mask := vcpu.UpcallMask
+	vcpu.UpcallMask = 1
+	return mask
+}
+
+//go:nosplit
+func irqRestore(mask uint8) {
+	vcpu := &_atman_shared_info.VCPUInfo[0]
+	vcpu.UpcallMask = mask
 }
 
 //go:nosplit

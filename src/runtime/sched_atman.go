@@ -102,6 +102,7 @@ func taskswitch() {
 		tasknext *Task
 	)
 
+	saved := irqDisable()
 	for {
 		taskwakeready(nanotime())
 
@@ -115,7 +116,9 @@ func taskswitch() {
 
 		HYPERVISOR_set_timer_op(tasksleepqueue.Head.WakeAt)
 		HYPERVISOR_sched_op(1, nil) // block
+		irqDisable()
 	}
+	irqRestore(saved)
 
 	taskcurrent = tasknext
 	taskrunqueue.Remove(taskcurrent)
