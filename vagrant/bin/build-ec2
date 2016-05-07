@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Build an EC2 bundle and upload/register it to Amazon.
+
+NAME=hello
+NAME=${NAME}-`date +%s`
+IMG=$NAME.img
+MNT=/mnt/ec2-image
+
+set -e
+
+sudo mkdir -p $MNT
+
+dd if=/dev/zero of=${IMG} bs=1M count=5
+sudo mke2fs -F -j ${IMG}
+sudo mount -o loop ${IMG} ${MNT}
+
+sudo mkdir -p $MNT/boot/grub
+cat << EOF | sudo tee $MNT/boot/grub/menu.lst
+default 0
+timeout 1
+hiddenmenu
+
+title AtmanOS Kernel
+  root (hd0,0)
+  kernel /boot/kernel
+EOF
+sudo cp atman/images/hello $MNT/boot/kernel
+sudo umount -d $MNT
+
+# openssl genrsa -out privatekey.pem 1024
+# openssl req -new -key privatekey.pem -out server.csr
+# openssl x509 -req -days 365 -in server.csr -signkey privatekey.pem -out server.crt
+
+rm -rf ec2_tmp
+mkdir ec2_tmp
+
+ec2-bundle-image \
+  -i $IMG \
+  -r x86_64 \
+  -d ec2_tmp \
+  --user 000000000000 \
+  --privatekey privatekey.pem \
+  --cert server.crt
+
+ec2-upload-bundle -b atmanos -m ec2_tmp/${IMG}.manifest.xml -a ${EC2_ACCESS} -s ${EC2_ACCESS_SECRET} --location ${REGION}
+
+ec2-register atmanos/${IMG}.manifest.xml -n ${NAME} --region ${REGION} --kernel aki-fc8f11cc -O $EC2_ACCESS -W $EC2_ACCESS_SECRET
