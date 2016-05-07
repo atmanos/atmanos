@@ -37,48 +37,36 @@ type timeInfo struct {
 func (t *timeInfo) checkBootTime() {
 	src := _atman_shared_info
 
-	t.check(&t.BootVersion, &src.WcVersion, func() {
+	for t.needsUpdate(&t.BootVersion, &src.WcVersion) {
+		t.BootVersion = src.WcVersion
+
+		lfence()
 		t.BootSec = int64(src.WcSec)
 		t.BootNsec = int64(src.WcNsec)
-	})
+		lfence()
+	}
 }
 
 // checkMonotonicTime ensures the system clock values are up-to-date.
 func (t *timeInfo) checkSystemTime() {
 	src := &_atman_shared_info.VCPUInfo[0].Time
 
-	t.check(&t.SystemVersion, &src.Version, func() {
+	for t.needsUpdate(&t.SystemVersion, &src.Version) {
+		t.SystemVersion = src.Version
+
+		lfence()
 		t.SystemNsec = src.SystemNsec
 		t.TSC = src.TSC
 		t.TSCMul = src.TSCMul
 		t.TSCShift = src.TSCShift
-	})
+		lfence()
+	}
 }
 
-// check atomically syncronizes the shadow and src versions
-// calling update if the versions disagree.
-func (t *timeInfo) check(shadow, src *uint32, update func()) {
-	if *shadow == atomicload(src) {
-		return
-	}
+func (t *timeInfo) needsUpdate(shadow, src *uint32) bool {
+	latest := atomicload(src)
 
-	for {
-		*shadow = atomicload(src)
-
-		lfence()
-		update()
-		lfence()
-
-		new := atomicload(src)
-
-		if new&1 == 1 {
-			continue
-		}
-
-		if *shadow == new {
-			return
-		}
-	}
+	return *shadow != latest || latest&1 == 1
 }
 
 func (t *timeInfo) nsSinceSystem() int64 {
