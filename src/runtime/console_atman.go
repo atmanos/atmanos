@@ -42,9 +42,26 @@ func (c console) notify() {
 }
 
 func (c console) write(b []byte) int {
-	n := c.ring.write(b)
-	c.notify()
-	return int(n)
+	var (
+		len = len(b)
+		rem = len
+	)
+
+	for rem > 0 {
+		sent := c.ring.write(b)
+		c.notify()
+
+		b = b[sent:]
+		rem -= sent
+
+		// Console messages are too valuable to lose,
+		// so we poll and yield our CPU while the console buffer is full.
+		if rem > 0 {
+			HYPERVISOR_sched_op(0, nil)
+		}
+	}
+
+	return len
 }
 
 func (c console) read(b []byte) int {
@@ -69,9 +86,9 @@ type consoleRing struct {
 	outProducerPos uint32
 }
 
-func (r *consoleRing) write(b []byte) uint32 {
+func (r *consoleRing) write(b []byte) int {
 	var (
-		sent = uint32(0)
+		sent = 0
 
 		cons = atomicload(&r.outConsumerPos)
 		prod = atomicload(&r.outProducerPos)
@@ -90,7 +107,6 @@ func (r *consoleRing) write(b []byte) uint32 {
 		if c == '\n' {
 			r.writeByteAt('\r', prod)
 			prod++
-			sent++
 		}
 
 		r.writeByteAt(c, prod)
