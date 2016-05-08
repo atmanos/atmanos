@@ -103,7 +103,7 @@ func (r *consoleRing) write(b []byte) int {
 			size = 2
 		}
 
-		if consoleRingOutSize-prod-cons < size {
+		if consoleRingOutSize-(prod-cons) < size {
 			break
 		}
 
