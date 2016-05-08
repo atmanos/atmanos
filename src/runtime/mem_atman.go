@@ -9,9 +9,14 @@ func sysUsed(v unsafe.Pointer, n uintptr)   {}
 func sysFault(v unsafe.Pointer, n uintptr)  {}
 
 // sysMap makes n bytes at v readable and writable and adjusts the stats.
+//go:nosplit
 func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
 	p := memAlloc(v, n)
+	if p == nil {
+		kprintString("runtime: out of memory\n")
+		crash()
+	}
 	if p != v {
 		throw("runtime: cannot map pages in arena address space")
 	}
@@ -19,6 +24,7 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 
 // sysAlloc allocates n bytes, adjusts sysStat, and returns the address
 // of the allocated bytes.
+//go:nosplit
 func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	p := memAlloc(nil, n)
 	if p != nil {
@@ -102,14 +108,16 @@ func (mm *atmanMemoryManager) allocPages(v unsafe.Pointer, n uint64) unsafe.Poin
 	}
 
 	for page := vaddr(v); page < vaddr(v)+vaddr(n*_PAGESIZE); page += _PAGESIZE {
-		mm.allocPage(page)
+		if !mm.allocPage(page) {
+			return nil
+		}
 	}
 
 	return v
 }
 
 // allocPage makes page a writeable userspace page.
-func (mm *atmanMemoryManager) allocPage(page vaddr) {
+func (mm *atmanMemoryManager) allocPage(page vaddr) bool {
 	var (
 		l4offset = page.pageTableOffset(pageTableLevel4)
 		l3offset = page.pageTableOffset(pageTableLevel3)
@@ -121,7 +129,10 @@ func (mm *atmanMemoryManager) allocPage(page vaddr) {
 	l3pte := l4.Get(l4offset)
 
 	if !l3pte.hasFlag(xenPageTablePresent) {
-		pfn := mm.physAllocPage()
+		pfn, ok := mm.physAllocPage()
+		if !ok {
+			return false
+		}
 		l3pte = mm.writePte(mm.l4PFN, l4offset, pfn, PTE_PAGE_TABLE_FLAGS|xenPageTableWritable)
 	}
 
@@ -129,7 +140,10 @@ func (mm *atmanMemoryManager) allocPage(page vaddr) {
 	l2pte := l3.Get(l3offset)
 
 	if !l2pte.hasFlag(xenPageTablePresent) {
-		pfn := mm.physAllocPage()
+		pfn, ok := mm.physAllocPage()
+		if !ok {
+			return false
+		}
 		l2pte = mm.writePte(l3pte.pfn(), l3offset, pfn, PTE_PAGE_TABLE_FLAGS|xenPageTableWritable)
 	}
 
@@ -137,15 +151,23 @@ func (mm *atmanMemoryManager) allocPage(page vaddr) {
 	l1pte := l2.Get(l2offset)
 
 	if !l1pte.hasFlag(xenPageTablePresent) {
-		pfn := mm.physAllocPage()
+		pfn, ok := mm.physAllocPage()
+		if !ok {
+			return false
+		}
 		l1pte = mm.writePte(l2pte.pfn(), l2offset, pfn, PTE_PAGE_TABLE_FLAGS|xenPageTableWritable)
 	}
 
-	pagepfn := mm.physAllocPage()
-	mm.writePte(l1pte.pfn(), l1offset, pagepfn, PTE_PAGE_FLAGS)
+	pfn, ok := mm.physAllocPage()
+	if !ok {
+		return false
+	}
+	mm.writePte(l1pte.pfn(), l1offset, pfn, PTE_PAGE_FLAGS)
 
 	// ensure page is writable
 	*(*uintptr)(unsafe.Pointer(page)) = 0x0
+
+	return true
 }
 
 func (mm *atmanMemoryManager) getPageTable(a, b, c int) xenPageTable {
@@ -168,10 +190,14 @@ func (mm *atmanMemoryManager) getPageTable(a, b, c int) xenPageTable {
 	return newXenPageTable(addr)
 }
 
-func (mm *atmanMemoryManager) physAllocPage() pfn {
-	pfn := mm.reservePFN()
+func (mm *atmanMemoryManager) physAllocPage() (pfn, bool) {
+	pfn, ok := mm.reservePFN()
+	if !ok {
+		return pfn, false
+	}
+
 	mm.clearPage(pfn)
-	return pfn
+	return pfn, true
 }
 
 func (mm *atmanMemoryManager) pageTableWalk(addr vaddr) {
@@ -239,10 +265,14 @@ func (mm *atmanMemoryManager) reserveHeapPages(n uint64) unsafe.Pointer {
 	return unsafe.Pointer(p)
 }
 
-func (mm *atmanMemoryManager) reservePFN() pfn {
-	var p pfn
-	p, mm.nextPFN = mm.nextPFN, mm.nextPFN+1
-	return p
+func (mm *atmanMemoryManager) reservePFN() (pfn, bool) {
+	if mm.nextPFN == mm.lastPFN {
+		return 0, false
+	}
+
+	p := mm.nextPFN
+	mm.nextPFN++
+	return p, true
 }
 
 // mapL4 sets up recursively mapped page table
