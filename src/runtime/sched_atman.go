@@ -167,9 +167,13 @@ func tasksleep(ns int64) (rem int64) {
 }
 
 // taskwake moves task from the sleep to the run queue.
+//
+// If task is already marked as awake, it does nothing.
 func taskwake(task *Task) {
-	tasksleepqueue.Remove(task)
-	taskready(task)
+	if task.WakeAt != 0 {
+		tasksleepqueue.Remove(task)
+		taskready(task)
+	}
 }
 
 func taskwakeready(at int64) {
