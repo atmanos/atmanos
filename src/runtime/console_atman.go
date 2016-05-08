@@ -37,10 +37,12 @@ func consoleHandleInput(_ uint32, _ *cpuRegisters) {
 	}
 }
 
+//go:nowritebarrier
 func (c console) notify() {
 	eventChanSend(c.port)
 }
 
+//go:nowritebarrier
 func (c console) write(b []byte) int {
 	var (
 		len = len(b)
@@ -86,6 +88,7 @@ type consoleRing struct {
 	outProducerPos uint32
 }
 
+//go:nowritebarrier
 func (r *consoleRing) write(b []byte) int {
 	var (
 		sent = 0
@@ -118,6 +121,7 @@ func (r *consoleRing) write(b []byte) int {
 	return sent
 }
 
+//go:nowritebarrier
 func (r *consoleRing) writeByteAt(b byte, off uint32) {
 	i := off & (consoleRingOutSize - 1)
 	r.out[i] = b
