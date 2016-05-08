@@ -1,0 +1,6 @@
+set -e
+
+make
+bin/atman test -c runtime -o vagrant/images/runtime.test
+vagrant rsync
+vagrant ssh --command 'startvm runtime.test -c "memory = 32"'
