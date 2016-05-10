@@ -47,7 +47,7 @@ func (t *timeInfo) checkBootTime() {
 	}
 }
 
-// checkMonotonicTime ensures the system clock values are up-to-date.
+// checkSystemTime ensures the system clock values are up-to-date.
 func (t *timeInfo) checkSystemTime() {
 	src := &_atman_shared_info.VCPUInfo[0].Time
 
