@@ -38,7 +38,7 @@ func (t *timeInfo) checkBootTime() {
 	src := _atman_shared_info
 
 	for t.needsUpdate(t.BootVersion, &src.WcVersion) {
-		t.BootVersion = src.WcVersion
+		t.BootVersion = atomicload(&src.WcVersion)
 
 		lfence()
 		t.BootSec = int64(src.WcSec)
@@ -52,7 +52,7 @@ func (t *timeInfo) checkSystemTime() {
 	src := &_atman_shared_info.VCPUInfo[0].Time
 
 	for t.needsUpdate(t.SystemVersion, &src.Version) {
-		t.SystemVersion = src.Version
+		t.SystemVersion = atomicload(&src.Version)
 
 		lfence()
 		t.SystemNsec = src.SystemNsec
