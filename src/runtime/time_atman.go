@@ -37,7 +37,7 @@ type timeInfo struct {
 func (t *timeInfo) checkBootTime() {
 	src := _atman_shared_info
 
-	for t.needsUpdate(&t.BootVersion, &src.WcVersion) {
+	for t.needsUpdate(t.BootVersion, &src.WcVersion) {
 		t.BootVersion = src.WcVersion
 
 		lfence()
@@ -51,7 +51,7 @@ func (t *timeInfo) checkBootTime() {
 func (t *timeInfo) checkSystemTime() {
 	src := &_atman_shared_info.VCPUInfo[0].Time
 
-	for t.needsUpdate(&t.SystemVersion, &src.Version) {
+	for t.needsUpdate(t.SystemVersion, &src.Version) {
 		t.SystemVersion = src.Version
 
 		lfence()
@@ -63,10 +63,10 @@ func (t *timeInfo) checkSystemTime() {
 	}
 }
 
-func (t *timeInfo) needsUpdate(shadow, src *uint32) bool {
+func (t *timeInfo) needsUpdate(shadow uint32, src *uint32) bool {
 	latest := atomicload(src)
 
-	return *shadow != latest || latest&1 == 1
+	return shadow != latest || latest&1 == 1
 }
 
 func (t *timeInfo) nsSinceSystem() int64 {
