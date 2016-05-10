@@ -17,6 +17,7 @@ var (
 
 	taskrunqueue   TaskList
 	tasksleepqueue TaskList
+	taskcache      taskCache
 )
 
 func init() {
@@ -46,15 +47,6 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 	// create hole in stack
 	stk = unsafe.Pointer(uintptr(stk) - 64)
 
-	// reserve stack space to create Task.
-	taskSize := unsafe.Sizeof(Task{})
-	stk = unsafe.Pointer(uintptr(stk) - taskSize)
-	memclr(stk, taskSize)
-	t := (*Task)(unsafe.Pointer(stk))
-
-	// create hole in stack
-	stk = unsafe.Pointer(uintptr(stk) - 64)
-
 	stk = unsafe.Pointer(uintptr(stk) - 8)
 	*(*uintptr)(stk) = uintptr(g0)
 
@@ -72,6 +64,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 	// to be filled in by contextload.
 	stk = unsafe.Pointer(uintptr(stk) - 8)
 
+	t := taskcache.alloc()
 	t.ID = taskid
 	t.Context = Context{
 		cpuRegisters: cpuRegisters{
@@ -257,6 +250,32 @@ func (l *TaskList) AddByWakeAt(t *Task) {
 
 	// no match, add to tail
 	l.Add(t)
+}
+
+type taskCache struct {
+	list TaskList
+}
+
+func (c *taskCache) alloc() *Task {
+	if c.list.Head == nil {
+		const taskSize = unsafe.Sizeof(Task{})
+		n := _PAGESIZE / taskSize
+		if n == 0 {
+			n = 1
+		}
+
+		// Must be non-GC memory because the GC and runtime
+		// depend on tasks.
+		mem := persistentalloc(n*taskSize, 0, &memstats.other_sys)
+		for i := uintptr(0); i < n; i++ {
+			task := (*Task)(add(mem, i*taskSize))
+			c.list.Add(task)
+		}
+	}
+
+	task := c.list.Head
+	c.list.Remove(task)
+	return task
 }
 
 // Context describes the state of a task
