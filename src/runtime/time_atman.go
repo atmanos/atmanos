@@ -3,8 +3,6 @@ package runtime
 //go:nosplit
 func lfence()
 
-var shadowTimeInfo timeInfo
-
 //go:nosplit
 func _nanotime() (ns int64) {
 	systemstack(func() {
@@ -18,6 +16,8 @@ func _nanotime() (ns int64) {
 func _time_now() (int64, int32) {
 	return shadowTimeInfo.timeNow()
 }
+
+var shadowTimeInfo timeInfo
 
 // timeInfo shadows time-related values stored in xenSharedInfo
 // and vcpuTimeInfo structures.
@@ -33,18 +33,28 @@ type timeInfo struct {
 	TSCShift      int8
 }
 
-// checkBootTime ensures the boot (wall) clock values are up-to-date.
-func (t *timeInfo) checkBootTime() {
-	src := _atman_shared_info
+// nanotime returns a monotonically increasing nanosecond time value.
+func (t *timeInfo) nanotime() int64 {
+	t.checkSystemTime()
 
-	for t.needsUpdate(t.BootVersion, &src.WcVersion) {
-		t.BootVersion = atomicload(&src.WcVersion)
+	return int64(t.SystemNsec) + t.nsSinceSystem()
+}
 
-		lfence()
-		t.BootSec = int64(src.WcSec)
-		t.BootNsec = int64(src.WcNsec)
-		lfence()
+// nsSinceSystem returns the nanoseconds that have elapsed since
+// t.SystemNsec was stored.
+func (t *timeInfo) nsSinceSystem() int64 {
+	diff := uint64(cputicks()) - t.TSC
+
+	if t.TSCShift < 0 {
+		diff >>= uint8(-t.TSCShift)
+	} else {
+		diff <<= uint8(t.TSCShift)
 	}
+
+	diff *= uint64(t.TSCMul)
+	diff >>= 32
+
+	return int64(diff)
 }
 
 // checkSystemTime ensures the system clock values are up-to-date.
@@ -69,27 +79,6 @@ func (t *timeInfo) needsUpdate(shadow uint32, src *uint32) bool {
 	return shadow != latest || latest&1 == 1
 }
 
-func (t *timeInfo) nsSinceSystem() int64 {
-	diff := uint64(cputicks()) - t.TSC
-
-	if t.TSCShift < 0 {
-		diff >>= uint8(-t.TSCShift)
-	} else {
-		diff <<= uint8(t.TSCShift)
-	}
-
-	diff *= uint64(t.TSCMul)
-	diff >>= 32
-
-	return int64(diff)
-}
-
-func (t *timeInfo) nanotime() int64 {
-	t.checkSystemTime()
-
-	return int64(t.SystemNsec) + t.nsSinceSystem()
-}
-
 func (t *timeInfo) timeNow() (int64, int32) {
 	t.checkBootTime()
 
@@ -103,4 +92,18 @@ func (t *timeInfo) timeNow() (int64, int32) {
 	nsec %= 1e9
 
 	return sec, int32(nsec)
+}
+
+// checkBootTime ensures the boot (wall) clock values are up-to-date.
+func (t *timeInfo) checkBootTime() {
+	src := _atman_shared_info
+
+	for t.needsUpdate(t.BootVersion, &src.WcVersion) {
+		t.BootVersion = atomicload(&src.WcVersion)
+
+		lfence()
+		t.BootSec = int64(src.WcSec)
+		t.BootNsec = int64(src.WcNsec)
+		lfence()
+	}
 }
