@@ -22,6 +22,16 @@ retry:
 	JMP	retry
 	RET
 
+// func crash()
+TEXT runtime·crash(SB),NOSPLIT,$8-4
+retry:
+	MOVQ	$2, DI	// SCHEDOP_shutdown
+	MOVQ	$3, (SP)
+	MOVQ	SP, SI	// *reason (3 SHUTDOWN_crash)
+	HYPERCALL($29)
+	JMP	retry
+	RET
+
 // func usleep(ms uint32)
 TEXT runtime·usleep(SB),NOSPLIT,$0-4
 	MOVQ	$runtime·tasksleepus(SB), AX

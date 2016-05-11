@@ -10,10 +10,6 @@ func osinit() {
 
 func sigpanic() {}
 
-func crash() {
-	*(*int32)(nil) = 0
-}
-
 func goenvs() {}
 
 //go:nowritebarrier

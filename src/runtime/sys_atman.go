@@ -148,6 +148,9 @@ func atmaninit() {
 	initEvents()
 }
 
+//go:nosplit
+func crash()
+
 func mapSharedInfo(vaddr uintptr) {
 	pageAddr := round(
 		uintptr(unsafe.Pointer(&_atman_shared_info_page[0])),
