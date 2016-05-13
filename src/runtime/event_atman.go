@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 type eventHandler func(port uint32, r *cpuRegisters)
 
@@ -87,7 +90,7 @@ func handleHypervisorCallback(r *cpuRegisters) {
 
 // handleEvents fires event handlers for any pending events.
 func handleEvents(r *cpuRegisters) {
-	sel := xchg64(&_atman_shared_info.VCPUInfo[0].PendingSel, 0)
+	sel := atomic.Xchg64(&_atman_shared_info.VCPUInfo[0].PendingSel, 0)
 
 	for i := uint32(0); i < 64; i++ {
 		// each set bit in sel is an index into EvtchnPending on the shared

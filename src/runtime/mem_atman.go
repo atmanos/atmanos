@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {}
 
@@ -314,7 +317,7 @@ func (mm *atmanMemoryManager) writePte(table pfn, offset int, value pfn, flags u
 
 	updates := []mmuUpdate{
 		{
-			ptr: uintptr((table.mfn() << xenPageFlagShift)) + uintptr(offset*ptrSize),
+			ptr: uintptr((table.mfn() << xenPageFlagShift)) + uintptr(offset*sys.PtrSize),
 			val: uintptr(newpte),
 		},
 	}

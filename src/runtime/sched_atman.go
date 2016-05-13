@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Atman implements a round-robin cooperative scheduler,
 // heavily inspired by libtask.
@@ -72,7 +75,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 			rip: funcPC(taskstart),
 		},
 	}
-	t.semawaiter.task = t
+	atomic.Storep1(unsafe.Pointer(&t.semawaiter.task), unsafe.Pointer(t))
 
 	taskid++
 	taskn++
@@ -88,6 +91,7 @@ func taskready(t *Task) {
 	taskrunqueue.Add(t)
 }
 
+//gc:nowritebarrier
 func taskyield() {
 	taskready(taskcurrent)
 	taskswitch()
@@ -117,7 +121,7 @@ func taskswitch() {
 	}
 	irqRestore(saved)
 
-	taskcurrent = tasknext
+	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(tasknext))
 	taskrunqueue.Remove(taskcurrent)
 
 	contextswitch(&taskprev.Context, &taskcurrent.Context)
@@ -197,30 +201,34 @@ func (l *TaskList) debug() {
 	println("]")
 }
 
+//gc:nowritebarrier
 func (l *TaskList) Add(t *Task) {
 	if l.Tail != nil {
-		l.Tail.Next = t
-		t.Prev = l.Tail
+		atomic.Storep1(unsafe.Pointer(&l.Tail.Next), unsafe.Pointer(t))
+		atomic.Storep1(unsafe.Pointer(&t.Prev), unsafe.Pointer(l.Tail))
 	} else {
-		l.Head = t
+		atomic.Storep1(unsafe.Pointer(&l.Head), unsafe.Pointer(t))
 		t.Prev = nil
 	}
 
-	l.Tail = t
+	atomic.Storep1(unsafe.Pointer(&l.Tail), unsafe.Pointer(t))
 	t.Next = nil
 }
 
+//gc:nowritebarrier
 func (l *TaskList) Remove(t *Task) {
 	if t.Prev != nil {
-		t.Prev.Next = t.Next
+		atomic.Storep1(unsafe.Pointer(&t.Prev.Next), unsafe.Pointer(t.Next))
+		// t.Prev.Next = t.Next
 	} else {
-		l.Head = t.Next
+		atomic.Storep1(unsafe.Pointer(&l.Head), unsafe.Pointer(t.Next))
+		// l.Head = t.Next
 	}
 
 	if t.Next != nil {
-		t.Next.Prev = t.Prev
+		atomic.Storep1(unsafe.Pointer(&t.Next.Prev), unsafe.Pointer(t.Prev))
 	} else {
-		l.Tail = t.Prev
+		atomic.Storep1(unsafe.Pointer(&l.Tail), unsafe.Pointer(t.Prev))
 	}
 }
 

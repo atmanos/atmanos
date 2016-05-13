@@ -18,7 +18,7 @@ if [ ! -d build/go ]; then
   echo "Fetching Go source"
   git clone \
     --depth 1 \
-    --branch go1.5.2 \
+    --branch go1.6.2 \
     https://github.com/golang/go build/go
 fi
 

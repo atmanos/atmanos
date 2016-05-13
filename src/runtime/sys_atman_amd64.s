@@ -1,3 +1,5 @@
+#include "textflag.h"
+
 #define _PAGE_ROUND_UP(REGISTER) \
 	ADDQ	$0x0000000000000fff, REGISTER	\
 	ANDQ	$0xfffffffffffff000, REGISTER

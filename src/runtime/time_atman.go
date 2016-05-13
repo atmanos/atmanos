@@ -1,5 +1,9 @@
 package runtime
 
+import (
+	"runtime/internal/atomic"
+)
+
 //go:nosplit
 func lfence()
 
@@ -62,7 +66,7 @@ func (t *timeInfo) checkSystemTime() {
 	src := &_atman_shared_info.VCPUInfo[0].Time
 
 	for t.needsUpdate(t.SystemVersion, &src.Version) {
-		t.SystemVersion = atomicload(&src.Version)
+		t.SystemVersion = atomic.Load(&src.Version)
 
 		lfence()
 		t.SystemNsec = src.SystemNsec
@@ -74,7 +78,7 @@ func (t *timeInfo) checkSystemTime() {
 }
 
 func (t *timeInfo) needsUpdate(shadow uint32, src *uint32) bool {
-	latest := atomicload(src)
+	latest := atomic.Load(src)
 
 	return shadow != latest || latest&1 == 1
 }
@@ -99,7 +103,7 @@ func (t *timeInfo) checkBootTime() {
 	src := _atman_shared_info
 
 	for t.needsUpdate(t.BootVersion, &src.WcVersion) {
-		t.BootVersion = atomicload(&src.WcVersion)
+		t.BootVersion = atomic.Load(&src.WcVersion)
 
 		lfence()
 		t.BootSec = int64(src.WcSec)

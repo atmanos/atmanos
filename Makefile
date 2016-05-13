@@ -6,6 +6,7 @@ build: $(GOROOT)/bin/atman $(GOROOT)/bin/go update-stdlib
 	$(GOROOT)/bin/atman build -a runtime
 
 $(GOROOT)/bin/atman: bin/atman
+	mkdir -p $(GOROOT)/bin
 	sed 's|GOROOT=.*|GOROOT=$(GOROOT)|' $< > $@
 	chmod +x $@
 

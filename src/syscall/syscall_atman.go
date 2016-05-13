@@ -120,3 +120,5 @@ func Read(fd int, b []byte) (n int, err error) {
 // WriteConsole writes b to the Xen console and
 // returns the number of bytes written.
 func WriteConsole(b []byte) int
+
+type Stat_t struct{}

@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 var _atman_console console
 
@@ -93,8 +96,8 @@ func (r *consoleRing) write(b []byte) int {
 	var (
 		sent = 0
 
-		cons = atomicload(&r.outConsumerPos)
-		prod = atomicload(&r.outProducerPos)
+		cons = atomic.Load(&r.outConsumerPos)
+		prod = atomic.Load(&r.outProducerPos)
 	)
 
 	for _, c := range b {
@@ -117,7 +120,7 @@ func (r *consoleRing) write(b []byte) int {
 		sent++
 	}
 
-	atomicstore(&r.outProducerPos, prod)
+	atomic.Store(&r.outProducerPos, prod)
 	return sent
 }
 
@@ -129,8 +132,8 @@ func (r *consoleRing) writeByteAt(b byte, off uint32) {
 
 func (r *consoleRing) read(b []byte) int {
 	var (
-		cons = atomicload(&r.inConsumerPos)
-		prod = atomicload(&r.inProducerPos)
+		cons = atomic.Load(&r.inConsumerPos)
+		prod = atomic.Load(&r.inProducerPos)
 	)
 
 	size := int(prod) - int(cons)
@@ -143,7 +146,7 @@ func (r *consoleRing) read(b []byte) int {
 		cons++
 	}
 
-	atomicstore(&r.inConsumerPos, cons)
+	atomic.Store(&r.inConsumerPos, cons)
 	return size
 }
 

@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 func osinit() {
 	ncpu = 1
@@ -14,9 +17,8 @@ func goenvs() {}
 
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 	if true {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	taskcreate(
@@ -51,7 +53,7 @@ func msigsave(mp *m) {
 }
 
 //go:nosplit
-func msigrestore(mp *m) {}
+func msigrestore(sigset) {}
 
 //go:nosplit
 func sigblock() {}
@@ -65,8 +67,10 @@ func osyield() {
 // The zero value is treated as absence of any semaphore,
 // so be sure to return a non-zero value.
 //go:nosplit
-func semacreate() uintptr {
-	return 1
+func semacreate(mp *m) {
+	if mp.waitsemacount != 0 {
+		mp.waitsemacount = 1
+	}
 }
 
 // If ns < 0, acquire m->waitsema and return 0.
@@ -90,7 +94,7 @@ func semasleepInternal(ns int64) int32 {
 
 	var addr = &_g_.m.waitsemacount
 
-	if cas(addr, 1, 0) {
+	if atomic.Cas(addr, 1, 0) {
 		return 0
 	}
 
@@ -99,7 +103,7 @@ func semasleepInternal(ns int64) int32 {
 		s      = &sleeptable[sleeptablekey(addr)]
 	)
 
-	atomicstorep1(unsafe.Pointer(&waiter.addr), unsafe.Pointer(addr))
+	atomic.Storep1(unsafe.Pointer(&waiter.addr), unsafe.Pointer(addr))
 	waiter.up = false
 	s.add(waiter)
 
@@ -125,7 +129,7 @@ func semawakeup(mp *m) {
 
 	waiter := s.removeWaiterOn(addr)
 	if waiter == nil {
-		xchg(addr, 1)
+		atomic.Xchg(addr, 1)
 	} else {
 		waiter.up = true
 		taskwake(waiter.task)
@@ -161,29 +165,29 @@ func (s *sema) removeWaiterOn(addr *uint32) *semawaiter {
 //go:nowritebarrier
 func (s *sema) remove(w *semawaiter) {
 	if w.prev != nil {
-		atomicstorep1(unsafe.Pointer(&w.prev.next), unsafe.Pointer(w.next))
+		atomic.Storep1(unsafe.Pointer(&w.prev.next), unsafe.Pointer(w.next))
 	} else {
-		atomicstorep1(unsafe.Pointer(&s.head), unsafe.Pointer(w.next))
+		atomic.Storep1(unsafe.Pointer(&s.head), unsafe.Pointer(w.next))
 	}
 
 	if w.next != nil {
-		atomicstorep1(unsafe.Pointer(&w.next.prev), unsafe.Pointer(w.prev))
+		atomic.Storep1(unsafe.Pointer(&w.next.prev), unsafe.Pointer(w.prev))
 	} else {
-		atomicstorep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w.prev))
+		atomic.Storep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w.prev))
 	}
 }
 
 //go:nowritebarrier
 func (s *sema) add(w *semawaiter) {
 	if s.tail != nil {
-		atomicstorep1(unsafe.Pointer(&s.tail.next), unsafe.Pointer(w))
-		atomicstorep1(unsafe.Pointer(&w.prev), unsafe.Pointer(s.tail))
+		atomic.Storep1(unsafe.Pointer(&s.tail.next), unsafe.Pointer(w))
+		atomic.Storep1(unsafe.Pointer(&w.prev), unsafe.Pointer(s.tail))
 	} else {
-		atomicstorep1(unsafe.Pointer(&s.head), unsafe.Pointer(w))
-		atomicstorep1(unsafe.Pointer(&w.prev), nil)
+		atomic.Storep1(unsafe.Pointer(&s.head), unsafe.Pointer(w))
+		atomic.Storep1(unsafe.Pointer(&w.prev), nil)
 	}
 
-	atomicstorep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w))
+	atomic.Storep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w))
 	w.next = nil
 }
 
@@ -193,4 +197,10 @@ type semawaiter struct {
 	up   bool
 
 	next, prev *semawaiter
+}
+
+type sigset struct{}
+
+type mOS struct {
+	waitsemacount uint32
 }

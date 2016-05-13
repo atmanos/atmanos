@@ -1,8 +1,8 @@
 diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
-index 184f973..35036d9 100644
+index 39a88cc..889fcdf 100644
 --- a/src/cmd/dist/build.go
 +++ b/src/cmd/dist/build.go
-@@ -59,6 +59,7 @@ var okgoarch = []string{
+@@ -62,6 +62,7 @@ var okgoarch = []string{
  
  // The known operating systems.
  var okgoos = []string{
@@ -11,10 +11,10 @@ index 184f973..35036d9 100644
  	"dragonfly",
  	"linux",
 diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
-index 688c278..b1b6a9c 100644
+index 762a49e..b8de4d3 100644
 --- a/src/cmd/internal/obj/link.go
 +++ b/src/cmd/internal/obj/link.go
-@@ -545,6 +545,7 @@ const (
+@@ -675,6 +675,7 @@ const (
  	Hplan9
  	Hsolaris
  	Hwindows
@@ -23,7 +23,7 @@ index 688c278..b1b6a9c 100644
  
  type Plist struct {
 diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
-index 37bb40b..4092393 100644
+index dd5297e..994df14 100644
 --- a/src/cmd/internal/obj/sym.go
 +++ b/src/cmd/internal/obj/sym.go
 @@ -56,6 +56,7 @@ var headers = []struct {
@@ -34,54 +34,25 @@ index 37bb40b..4092393 100644
  }
  
  func headtype(name string) int {
-@@ -124,7 +125,8 @@ func Linknew(arch *LinkArch) *Link {
- 		Hnetbsd,
- 		Hopenbsd,
- 		Hdragonfly,
--		Hsolaris:
-+		Hsolaris,
-+		Hatman:
- 		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
- 
- 	case Hnacl:
 diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
-index 7a69dc8..4d7998b 100644
+index 4ed1d87..6c1c018 100644
 --- a/src/cmd/internal/obj/x86/asm6.go
 +++ b/src/cmd/internal/obj/x86/asm6.go
-@@ -1949,7 +1949,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
- 			default:
- 				log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
+@@ -2224,7 +2224,8 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 				obj.Hfreebsd,
+ 				obj.Hnetbsd,
+ 				obj.Hopenbsd,
+-				obj.Hsolaris:
++				obj.Hsolaris,
++				obj.Hatman:
+ 				return 0x64 // FS
  
--			case obj.Hlinux:
-+			case obj.Hlinux, obj.Hatman:
- 				if ctxt.Flag_shared != 0 {
- 					log.Fatalf("unknown TLS base register for linux with -shared")
- 				} else {
-@@ -3779,7 +3779,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
- 							log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
- 
- 						case obj.Hlinux,
--							obj.Hnacl:
-+							obj.Hnacl,
-+							obj.Hatman:
- 							// ELF TLS base is 0(GS).
- 							pp.From = p.From
- 
-@@ -3830,7 +3831,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
- 					default:
- 						log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
- 
--					case obj.Hlinux:
-+					case obj.Hlinux,
-+						obj.Hatman:
- 						if ctxt.Flag_shared == 0 {
- 							log.Fatalf("unknown TLS base location for linux without -shared")
- 						}
+ 			case obj.Hdarwin:
 diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
-index fa9c474..d914891 100644
+index 55ddfe1..5a92b1f 100644
 --- a/src/cmd/internal/obj/x86/obj6.go
 +++ b/src/cmd/internal/obj/x86/obj6.go
-@@ -44,7 +44,8 @@ func canuse1insntls(ctxt *obj.Link) bool {
+@@ -54,7 +54,8 @@ func canuse1insntls(ctxt *obj.Link) bool {
  		case obj.Hlinux,
  			obj.Hnacl,
  			obj.Hplan9,
@@ -91,7 +62,7 @@ index fa9c474..d914891 100644
  			return false
  		}
  
-@@ -55,7 +56,7 @@ func canuse1insntls(ctxt *obj.Link) bool {
+@@ -65,7 +66,7 @@ func canuse1insntls(ctxt *obj.Link) bool {
  	case obj.Hplan9,
  		obj.Hwindows:
  		return false
@@ -101,10 +72,10 @@ index fa9c474..d914891 100644
  	}
  
 diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
-index 74ec9dd..3ed2c46 100644
+index fa785c2..fa6d72b 100644
 --- a/src/cmd/link/internal/amd64/asm.go
 +++ b/src/cmd/link/internal/amd64/asm.go
-@@ -685,7 +685,8 @@ func asmb() {
+@@ -683,7 +683,8 @@ func asmb() {
  		obj.Hnetbsd,
  		obj.Hopenbsd,
  		obj.Hdragonfly,
@@ -114,7 +85,7 @@ index 74ec9dd..3ed2c46 100644
  		ld.Debug['8'] = 1 /* 64-bit addresses */
  
  	case obj.Hnacl,
-@@ -718,7 +719,8 @@ func asmb() {
+@@ -716,7 +717,8 @@ func asmb() {
  			obj.Hopenbsd,
  			obj.Hdragonfly,
  			obj.Hsolaris,
@@ -124,7 +95,7 @@ index 74ec9dd..3ed2c46 100644
  			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
  			symo = ld.Rnd(symo, int64(ld.INITRND))
  
-@@ -806,7 +808,8 @@ func asmb() {
+@@ -804,7 +806,8 @@ func asmb() {
  		obj.Hopenbsd,
  		obj.Hdragonfly,
  		obj.Hsolaris,
@@ -159,10 +130,10 @@ index 1aa4422..bcd3892 100644
  
  		ld.HEADR = ld.ELFRESERVE
 diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
-index 3aebd8a..ddd9651 100644
+index 0e5a2d0..efa5955 100644
 --- a/src/cmd/link/internal/arm64/asm.go
 +++ b/src/cmd/link/internal/arm64/asm.go
-@@ -416,7 +416,8 @@ func asmb() {
+@@ -540,7 +540,8 @@ func asmb() {
  		obj.Hfreebsd,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
@@ -173,7 +144,7 @@ index 3aebd8a..ddd9651 100644
  
  	case obj.Hdarwin:
 diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
-index 56f5815..77796c0 100644
+index ae121c2..cee9244 100644
 --- a/src/cmd/link/internal/arm64/obj.go
 +++ b/src/cmd/link/internal/arm64/obj.go
 @@ -100,7 +100,7 @@ func archinit() {
@@ -185,7 +156,7 @@ index 56f5815..77796c0 100644
  		break
  	}
  
-@@ -121,7 +121,8 @@ func archinit() {
+@@ -125,7 +125,8 @@ func archinit() {
  			ld.INITRND = 4096
  		}
  
@@ -196,10 +167,10 @@ index 56f5815..77796c0 100644
  		ld.HEADR = ld.ELFRESERVE
  		if ld.INITTEXT == -1 {
 diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
-index 508f055..9239b7d 100644
+index 6d34978..611d982 100644
 --- a/src/cmd/link/internal/ld/elf.go
 +++ b/src/cmd/link/internal/ld/elf.go
-@@ -1103,6 +1103,52 @@ func elfwritenetbsdsig() int {
+@@ -1168,6 +1168,52 @@ func elfwritenetbsdsig() int {
  	return int(sh.size)
  }
  
@@ -252,7 +223,7 @@ index 508f055..9239b7d 100644
  // OpenBSD Signature
  const (
  	ELF_NOTE_OPENBSD_NAMESZ  = 8
-@@ -1686,6 +1732,13 @@ func doelf() {
+@@ -1751,6 +1797,13 @@ func doelf() {
  	if buildid != "" {
  		Addstring(shstrtab, ".note.go.buildid")
  	}
@@ -265,8 +236,8 @@ index 508f055..9239b7d 100644
 +
  	Addstring(shstrtab, ".elfdata")
  	Addstring(shstrtab, ".rodata")
- 	Addstring(shstrtab, ".typelink")
-@@ -2042,7 +2095,7 @@ func Asmbelf(symo int64) {
+ 	// See the comment about data.rel.ro.FOO section names in data.go.
+@@ -2117,7 +2170,7 @@ func Asmbelf(symo int64) {
  	 * segment boundaries downwards to include it.
  	 * Except on NaCl where it must not be loaded.
  	 */
@@ -275,7 +246,7 @@ index 508f055..9239b7d 100644
  		o := int64(Segtext.Vaddr - pph.vaddr)
  		Segtext.Vaddr -= uint64(o)
  		Segtext.Length += uint64(o)
-@@ -2130,6 +2183,35 @@ func Asmbelf(symo int64) {
+@@ -2205,6 +2258,35 @@ func Asmbelf(symo int64) {
  		phsh(pnote, sh)
  	}
  
@@ -311,7 +282,7 @@ index 508f055..9239b7d 100644
  	// Additions to the reserved area must be above this line.
  
  	elfphload(&Segtext)
-@@ -2445,6 +2527,9 @@ elfobj:
+@@ -2518,6 +2600,9 @@ elfobj:
  			a += int64(elfwritegobuildid())
  		}
  	}
@@ -322,10 +293,10 @@ index 508f055..9239b7d 100644
  	if a > elfreserve {
  		Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
 diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
-index 652109d..a096d4c 100644
+index 731f3ed..5066067 100644
 --- a/src/cmd/link/internal/ld/sym.go
 +++ b/src/cmd/link/internal/ld/sym.go
-@@ -53,6 +53,7 @@ var headers = []struct {
+@@ -49,6 +49,7 @@ var headers = []struct {
  	{"freebsd", obj.Hfreebsd},
  	{"linux", obj.Hlinux},
  	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
@@ -333,21 +304,21 @@ index 652109d..a096d4c 100644
  	{"nacl", obj.Hnacl},
  	{"netbsd", obj.Hnetbsd},
  	{"openbsd", obj.Hopenbsd},
-@@ -105,7 +106,8 @@ func linknew(arch *LinkArch) *Link {
- 		obj.Hnetbsd,
- 		obj.Hopenbsd,
- 		obj.Hdragonfly,
--		obj.Hsolaris:
-+		obj.Hsolaris,
-+		obj.Hatman:
- 		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+@@ -118,6 +119,9 @@ func linknew(arch *LinkArch) *Link {
+ 			ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+ 		}
  
++	case obj.Hatman:
++		ctxt.Tlsoffset = 0
++
  	case obj.Hnacl:
+ 		switch ctxt.Arch.Thechar {
+ 		default:
 diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
-index d30bd48..5ee6b25 100644
+index 830a7e6..514f8c9 100644
 --- a/src/cmd/link/internal/x86/asm.go
 +++ b/src/cmd/link/internal/x86/asm.go
-@@ -632,7 +632,8 @@ func asmb() {
+@@ -761,7 +761,8 @@ func asmb() {
  		obj.Hfreebsd,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
@@ -358,10 +329,10 @@ index d30bd48..5ee6b25 100644
  
  	case obj.Hwindows:
 diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
-index ee408f7..89f3f99 100644
+index c153555..44645b9 100644
 --- a/src/cmd/link/internal/x86/obj.go
 +++ b/src/cmd/link/internal/x86/obj.go
-@@ -100,7 +100,8 @@ func archinit() {
+@@ -107,7 +107,8 @@ func archinit() {
  		obj.Hlinux,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
@@ -371,7 +342,7 @@ index ee408f7..89f3f99 100644
  		break
  	}
  
-@@ -138,7 +139,8 @@ func archinit() {
+@@ -145,7 +146,8 @@ func archinit() {
  	case obj.Hlinux, /* elf32 executable */
  		obj.Hfreebsd,
  		obj.Hnetbsd,

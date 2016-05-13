@@ -1,6 +1,9 @@
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
 	_PAGESIZE = 0x1000
@@ -32,7 +35,7 @@ var _cgo_unsetenv unsafe.Pointer // pointer to C function
 
 const _NSIG = 0
 
-func initsig()                 {}
+func initsig(bool)             {}
 func sigdisable(uint32)        {}
 func sigenable(uint32)         {}
 func sigignore(uint32)         {}
@@ -115,7 +118,7 @@ func atmaninit() {
 	_atman_console.init()
 
 	println("Atman OS")
-	println("     ptr_size: ", ptrSize)
+	println("     ptr_size: ", sys.PtrSize)
 	println("   start_info: ", _atman_start_info)
 	println("        magic: ", string(_atman_start_info.Magic[:]))
 	println("     nr_pages: ", _atman_start_info.NrPages)
@@ -278,7 +281,7 @@ func (e pageTableEntry) pfn() pfn {
 type xenPageTable uintptr
 
 func (t xenPageTable) Get(i int) pageTableEntry {
-	return *(*pageTableEntry)(add(unsafe.Pointer(t), uintptr(i)*ptrSize))
+	return *(*pageTableEntry)(add(unsafe.Pointer(t), uintptr(i)*sys.PtrSize))
 }
 
 func (t xenPageTable) vaddr() vaddr {
@@ -292,7 +295,7 @@ func newXenPageTable(vaddr vaddr) xenPageTable {
 type xenMachineToPhysicalMap uintptr
 
 func (m2p xenMachineToPhysicalMap) Get(mfn mfn) pfn {
-	offset := uintptr(mfn) * ptrSize
+	offset := uintptr(mfn) * sys.PtrSize
 
 	return pfn(*(*uintptr)(add(unsafe.Pointer(m2p), offset)))
 }
