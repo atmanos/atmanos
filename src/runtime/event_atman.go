@@ -11,8 +11,8 @@ var eventHandlers [4096]eventHandler
 
 func initEvents() {
 	HYPERVISOR_set_callbacks(
-		funcPC(hypervisorEventCallback),
-		funcPC(hypervisorFailsafeCallback),
+		funcPC(eventCallbackASM),
+		funcPC(eventFailsafe),
 	)
 
 	enableIRQ()
@@ -24,6 +24,7 @@ func initEvents() {
 //go:nosplit
 func clearbit(addr *uint64, n uint32)
 
+//go:nosplit
 func eventChanSend(port uint32) {
 	op := struct{ port uint32 }{port: port}
 
@@ -71,55 +72,6 @@ func irqRestore(mask uint8) {
 	vcpu.UpcallMask = mask
 }
 
-//go:nosplit
-func hypervisorEventCallback()
-
-//go:nosplit
-func hypervisorFailsafeCallback()
-
-//go:nosplit
-func handleHypervisorCallback(r *cpuRegisters) {
-	_atman_shared_info.VCPUInfo[0].UpcallPending = 0
-
-	systemstack(func() {
-		handleEvents(r)
-	})
-
-	// _atman_shared_info.EvtchnPending[0] = 0
-}
-
-// handleEvents fires event handlers for any pending events.
-func handleEvents(r *cpuRegisters) {
-	sel := atomic.Xchg64(&_atman_shared_info.VCPUInfo[0].PendingSel, 0)
-
-	for i := uint32(0); i < 64; i++ {
-		// each set bit in sel is an index into EvtchnPending on the shared
-		// info struct.
-		if sel&(1<<i) == 0 {
-			continue
-		}
-
-		basePort := i * 64
-		pending := _atman_shared_info.EvtchnPending[i]
-
-		for j := uint32(0); j < 64; j++ {
-			if pending&(1<<j) == 0 {
-				continue
-			}
-
-			handleEvent(basePort+j, r)
-		}
-	}
-}
-
-func handleEvent(port uint32, r *cpuRegisters) {
-	if handler := eventHandlers[port]; handler != nil {
-		handler(port, r)
-	}
-
-	clearEventChan(port)
-}
-
 func bindVIRQ() {
 	op := struct {
 		VIRQ uint32
@@ -148,3 +100,75 @@ func bindVIRQ() {
 func bindEventHandler(port uint32, f eventHandler) {
 	eventHandlers[port] = f
 }
+
+// handleEvents fires event handlers for any pending events.
+//
+//go:nosplit
+func handleEvents(r *cpuRegisters) {
+	_atman_shared_info.VCPUInfo[0].UpcallPending = 0
+
+	sel := atomic.Xchg64(&_atman_shared_info.VCPUInfo[0].PendingSel, 0)
+
+	for i := uint32(0); i < 64; i++ {
+		// each set bit in sel is an index into EvtchnPending on the shared
+		// info struct.
+		if sel&(1<<i) == 0 {
+			continue
+		}
+
+		basePort := i * 64
+		pending := _atman_shared_info.EvtchnPending[i]
+
+		for j := uint32(0); j < 64; j++ {
+			if pending&(1<<j) == 0 {
+				continue
+			}
+
+			handleEvent(basePort+j, r)
+		}
+	}
+}
+
+// handleEvent calls the registered handler on port, if it exists,
+// and then acknowledges the event.
+func handleEvent(port uint32, r *cpuRegisters) {
+	if handler := eventHandlers[port]; handler != nil {
+		handler(port, r)
+	}
+
+	clearEventChan(port)
+}
+
+// eventCallback is called by eventCallbackASM after switching
+// to the gsignal stack.
+//
+//go:nosplit
+//go:nowritebarrierrec
+func eventCallback(r *cpuRegisters, sp uintptr) {
+	g := getg()
+	if g == nil {
+		kprintString("Event callback called with no g\n")
+		crash()
+		return
+	}
+
+	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+		kprintString("eventgo: Event callback called, but not on signal stack\n")
+		crash()
+		return
+	}
+
+	setg(g.m.gsignal)
+	handleEvents(r)
+	setg(g)
+}
+
+// eventCallbackASM is called by Xen when there are events to process.
+//
+//go:nosplit
+func eventCallbackASM()
+
+// eventFailsafe is called by Xen if the event callback fails.
+//
+//go:nosplit
+func eventFailsafe()

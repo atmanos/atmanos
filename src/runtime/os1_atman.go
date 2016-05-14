@@ -45,6 +45,9 @@ func unminit() {
 //go:nosplit
 func mpreinit(mp *m) {
 	print("mpreinit(", unsafe.Pointer(mp), ")", "\n")
+
+	mp.gsignal = malg(32 * 1024)
+	mp.gsignal.m = mp
 }
 
 //go:nosplit
