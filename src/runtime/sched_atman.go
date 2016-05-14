@@ -70,7 +70,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 	t := taskcache.alloc()
 	t.ID = taskid
 	t.Context = Context{
-		cpuRegisters: cpuRegisters{
+		r: cpuRegisters{
 			rsp: uintptr(stk),
 			rip: funcPC(taskstart),
 		},
@@ -289,15 +289,15 @@ func (c *taskCache) alloc() *Task {
 // Context describes the state of a task
 // for saving or restoring a task's execution context.
 type Context struct {
-	cpuRegisters
+	r   cpuRegisters
 	tls uintptr
 }
 
 func (c *Context) debug() {
 	print(
 		"Context{",
-		"rsp=", unsafe.Pointer(c.rsp),
-		" rip=", unsafe.Pointer(c.rip),
+		"rsp=", unsafe.Pointer(c.r.rsp),
+		" rip=", unsafe.Pointer(c.r.rip),
 		" tls=", unsafe.Pointer(c.tls),
 		"}", "\n",
 	)
