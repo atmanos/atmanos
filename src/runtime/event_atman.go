@@ -93,7 +93,13 @@ func bindVIRQ() {
 		println("HYPERVISOR_event_channel_op returned", ret)
 	}
 
+	bindEventHandler(op.Port, virqHandler)
+
 	println("Bound VIRQ to Port", op.Port)
+}
+
+func virqHandler(port uint32, r *cpuRegisters) {
+	taskwakeready(nanotime())
 }
 
 // bindEventHandler binds the handler f to events on port.
@@ -159,9 +165,39 @@ func eventCallback(r *cpuRegisters, sp uintptr) {
 	}
 
 	setg(g.m.gsignal)
+
+	// Correct CS and SS for return
+	r.cs |= 3
+	r.ss |= 3
+
+	kprintString("eventCallback: r=")
+	r.debug()
+
 	handleEvents(r)
+
+	if taskrunqueue.Head != nil && taskrunqueue.Head != taskcurrent {
+		// there's another runnable task, let's context switch
+		taskcurrent.Context.r = *r
+		taskready(taskcurrent)
+		atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(taskrunqueue.Head))
+		taskrunqueue.Remove(taskcurrent)
+
+		// correct iret portion of registers
+		taskcurrent.Context.r.rflags = r.rflags
+		taskcurrent.Context.r.cs = r.cs
+		taskcurrent.Context.r.ss = r.ss
+
+		*r = taskcurrent.Context.r
+		kprintString("switching to: ")
+		r.debug()
+	}
+
 	setg(g)
+	atmansettls(taskcurrent.Context.tls)
 }
+
+//go:nosplit
+func atmansettls(tls uintptr)
 
 // eventCallbackASM is called by Xen when there are events to process.
 //

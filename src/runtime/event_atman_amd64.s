@@ -62,3 +62,8 @@ TEXT ·eventCallbackASM(SB),NOSPLIT,$0
 TEXT ·eventFailsafe(SB),NOSPLIT,$0
 	IRETQ
 	RET
+
+TEXT ·atmansettls(SB),NOSPLIT,$-8
+	MOVQ	tls+0(FP), DI
+	CALL runtime·settls(SB)
+	RET
