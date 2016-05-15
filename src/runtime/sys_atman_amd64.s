@@ -57,13 +57,9 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	JMP	AX
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$16
-	CALL	·_time_now(SB)
-	MOVQ	0(SP), AX
-	MOVQ	AX, ret+0(FP)
-	MOVQ	8(SP), AX
-	MOVQ	AX, ret+8(FP)
-	RET
+TEXT time·now(SB),NOSPLIT,$0-16
+	MOVQ	$runtime·_time_now(SB), AX
+	JMP	AX
 
 // set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$0

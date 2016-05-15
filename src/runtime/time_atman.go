@@ -9,11 +9,7 @@ func lfence()
 
 //go:nosplit
 func _nanotime() (ns int64) {
-	systemstack(func() {
-		ns = shadowTimeInfo.nanotime()
-	})
-
-	return ns
+	return shadowTimeInfo.nanotime()
 }
 
 //go:nosplit
@@ -38,6 +34,8 @@ type timeInfo struct {
 }
 
 // nanotime returns a monotonically increasing nanosecond time value.
+//
+//go:nosplit
 func (t *timeInfo) nanotime() int64 {
 	t.checkSystemTime()
 
@@ -46,6 +44,8 @@ func (t *timeInfo) nanotime() int64 {
 
 // nsSinceSystem returns the nanoseconds that have elapsed since
 // t.SystemNsec was stored.
+//
+//go:nosplit
 func (t *timeInfo) nsSinceSystem() int64 {
 	diff := uint64(cputicks()) - t.TSC
 
@@ -62,6 +62,8 @@ func (t *timeInfo) nsSinceSystem() int64 {
 }
 
 // checkSystemTime ensures the system clock values are up-to-date.
+//
+//go:nosplit
 func (t *timeInfo) checkSystemTime() {
 	src := &_atman_shared_info.VCPUInfo[0].Time
 
@@ -77,12 +79,14 @@ func (t *timeInfo) checkSystemTime() {
 	}
 }
 
+//go:nosplit
 func (t *timeInfo) needsUpdate(shadow uint32, src *uint32) bool {
 	latest := atomic.Load(src)
 
 	return shadow != latest || latest&1 == 1
 }
 
+//go:nosplit
 func (t *timeInfo) timeNow() (int64, int32) {
 	t.checkBootTime()
 
@@ -99,6 +103,8 @@ func (t *timeInfo) timeNow() (int64, int32) {
 }
 
 // checkBootTime ensures the boot (wall) clock values are up-to-date.
+//
+//go:nosplit
 func (t *timeInfo) checkBootTime() {
 	src := _atman_shared_info
 
