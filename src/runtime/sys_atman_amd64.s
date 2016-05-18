@@ -1,19 +1,5 @@
+#include "atman_asm.h"
 #include "textflag.h"
-
-#define _PAGE_ROUND_UP(REGISTER) \
-	ADDQ	$0x0000000000000fff, REGISTER	\
-	ANDQ	$0xfffffffffffff000, REGISTER
-
-#define CALL_RBX \
-	BYTE $0xff; BYTE $0xd3	// callq *%rbx
-
-#define HYPERCALL(TRAP) \
-	MOVQ	TRAP, CX				\
-	IMULQ	$32, CX					\
-	MOVQ	$runtime·_atman_hypercall_page(SB), BX	\
-	_PAGE_ROUND_UP(BX)				\
-	ADDQ	CX, BX					\
-	CALL_RBX                                        \
 
 TEXT runtime·exit(SB),NOSPLIT,$8-4
 retry:

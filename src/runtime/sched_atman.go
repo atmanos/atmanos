@@ -56,25 +56,15 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 	stk = unsafe.Pointer(uintptr(stk) - 8)
 	*(*uintptr)(stk) = uintptr(mp)
 
-	// reserve 8 bytes of space for return value,
-	// for calling compatibility with contextsave.
-	stk = unsafe.Pointer(uintptr(stk) - 8)
-
 	stk = unsafe.Pointer(uintptr(stk) - 8)
 	*(*uintptr)(stk) = uintptr(fn)
 
-	// reserve 8 bytes of space for return address,
-	// to be filled in by contextload.
-	stk = unsafe.Pointer(uintptr(stk) - 8)
-
 	t := taskcache.alloc()
 	t.ID = taskid
-	t.Context = Context{
-		r: cpuRegisters{
-			rsp: uintptr(stk),
-			rip: funcPC(taskstart),
-		},
-	}
+
+	contextsave(&t.Context, 0)
+	t.Context.r.rsp = uintptr(stk)
+	t.Context.r.rip = funcPC(taskstart)
 	atomic.Storep1(unsafe.Pointer(&t.semawaiter.task), unsafe.Pointer(t))
 
 	taskid++
@@ -84,7 +74,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 }
 
 //go:nosplit
-func taskstart(fn, _, mp, gp unsafe.Pointer)
+func taskstart(fn, mp, gp unsafe.Pointer)
 
 func taskready(t *Task) {
 	t.WakeAt = 0
@@ -98,10 +88,11 @@ func taskyield() {
 }
 
 func taskswitch() {
-	var (
-		taskprev = taskcurrent
-		tasknext *Task
-	)
+	contextsave(&taskcurrent.Context, funcPC(taskschedule))
+}
+
+func taskschedule() {
+	var tasknext *Task
 
 	saved := irqDisable()
 	for {
@@ -123,8 +114,7 @@ func taskswitch() {
 
 	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(tasknext))
 	taskrunqueue.Remove(taskcurrent)
-
-	contextswitch(&taskprev.Context, &taskcurrent.Context)
+	contextload(&taskcurrent.Context)
 }
 
 func tasksleepus(us uint32) {
@@ -303,13 +293,7 @@ func (c *Context) debug() {
 	)
 }
 
-func contextswitch(from, to *Context) {
-	if contextsave(from) == 0 {
-		contextload(to)
-	}
-}
-
-func contextsave(*Context) int
+func contextsave(*Context, uintptr)
 func contextload(*Context)
 
 // cpuRegisters describes the state of a CPU
