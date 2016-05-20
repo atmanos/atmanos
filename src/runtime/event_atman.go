@@ -170,9 +170,6 @@ func eventCallback(r *cpuRegisters, sp uintptr) {
 	r.cs |= 3
 	r.ss |= 3
 
-	kprintString("eventCallback: r=")
-	r.debug()
-
 	handleEvents(r)
 
 	if taskrunqueue.Head != nil && taskrunqueue.Head != taskcurrent {
@@ -182,14 +179,7 @@ func eventCallback(r *cpuRegisters, sp uintptr) {
 		atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(taskrunqueue.Head))
 		taskrunqueue.Remove(taskcurrent)
 
-		// correct iret portion of registers
-		taskcurrent.Context.r.rflags = r.rflags
-		taskcurrent.Context.r.cs = r.cs
-		taskcurrent.Context.r.ss = r.ss
-
 		*r = taskcurrent.Context.r
-		kprintString("switching to: ")
-		r.debug()
 	}
 
 	setg(g)
