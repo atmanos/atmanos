@@ -83,7 +83,10 @@ func taskstart(fn, mp, gp unsafe.Pointer)
 
 func taskready(t *Task) {
 	t.WakeAt = 0
+
+	saved := irqDisable()
 	taskrunqueue.Add(t)
+	irqRestore(saved)
 }
 
 //gc:nowritebarrier
@@ -161,7 +164,10 @@ func tasksleep(ns int64) (rem int64) {
 		taskcurrent.WakeAt = sleepstart + ns
 	}
 
+	saved := irqDisable()
 	tasksleepqueue.AddByWakeAt(taskcurrent)
+	irqRestore(saved)
+
 	taskswitch()
 
 	sleepend := nanotime()
@@ -181,10 +187,12 @@ func tasksleep(ns int64) (rem int64) {
 //
 // If task is already marked as awake, it does nothing.
 func taskwake(task *Task) {
+	saved := irqDisable()
 	if task.WakeAt != 0 {
 		tasksleepqueue.Remove(task)
 		taskready(task)
 	}
+	irqRestore(saved)
 }
 
 func taskwakeready(at int64) {
