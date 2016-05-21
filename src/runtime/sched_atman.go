@@ -92,6 +92,20 @@ func taskswitch() {
 	contextsave(&taskcurrent.Context, funcPC(taskschedule))
 }
 
+func contextswitch(r *cpuRegisters) bool {
+	if taskrunqueue.Head == nil || taskrunqueue.Head == taskcurrent {
+		return false
+	}
+
+	taskcurrent.Context.r = *r
+	taskready(taskcurrent)
+
+	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(taskrunqueue.Head))
+	taskrunqueue.Remove(taskcurrent)
+
+	return true
+}
+
 func taskschedule() {
 	var tasknext *Task
 

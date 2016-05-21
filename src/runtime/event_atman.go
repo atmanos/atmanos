@@ -171,19 +171,14 @@ func eventCallback(r *cpuRegisters, sp uintptr) {
 	r.ss |= 3
 
 	handleEvents(r)
-
-	if taskrunqueue.Head != nil && taskrunqueue.Head != taskcurrent {
-		// there's another runnable task, let's context switch
-		taskcurrent.Context.r = *r
-		taskready(taskcurrent)
-		atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(taskrunqueue.Head))
-		taskrunqueue.Remove(taskcurrent)
-
-		*r = taskcurrent.Context.r
-	}
+	switched := contextswitch(r)
 
 	setg(g)
-	atmansettls(taskcurrent.Context.tls)
+
+	if switched {
+		*r = taskcurrent.Context.r
+		atmansettls(taskcurrent.Context.tls)
+	}
 }
 
 //go:nosplit
