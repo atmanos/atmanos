@@ -51,8 +51,8 @@ TEXT ·contextsave(SB),NOSPLIT,$0-16
 	ADDQ	$8, CX
 	MOVQ	CX, (Context_r+cpuRegisters_rsp)(DI)
 
-	READ_FS_BASE(AX)
-	MOVQ	AX, (Context_tls)(DI)
+	READ_FS_BASE(BX)
+	MOVQ	BX, (Context_tls)(DI)
 
 	MOVQ	after+8(FP), CX
 	CMPQ	CX, $0
@@ -60,13 +60,15 @@ TEXT ·contextsave(SB),NOSPLIT,$0-16
 	CALL	CX
 
 skipcallback:
+
 	RET
 
 // func contextload(*Context)
 TEXT ·contextload(SB),NOSPLIT,$0-8
-	MOVQ	ctx+0(FP), SP
-	MOVQ	(Context_tls)(SP), DI
+	MOVQ	ctx+0(FP), AX
+	MOVQ	(Context_tls)(AX), DI
 	CALL	runtime·settls(SB)
+	MOVQ	ctx+0(FP), SP
 	RESTORE_ALL
 	ADDQ	$(cpuRegisters_code+8), SP
 	IRETQ

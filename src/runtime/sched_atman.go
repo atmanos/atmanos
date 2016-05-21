@@ -87,6 +87,7 @@ func taskyield() {
 	taskswitch()
 }
 
+//go:nosplit
 func taskswitch() {
 	contextsave(&taskcurrent.Context, funcPC(taskschedule))
 }
@@ -293,7 +294,10 @@ func (c *Context) debug() {
 	)
 }
 
+//go:nosplit
 func contextsave(*Context, uintptr)
+
+//go:nosplit
 func contextload(*Context)
 
 // cpuRegisters describes the state of a CPU
