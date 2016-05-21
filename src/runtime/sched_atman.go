@@ -18,6 +18,11 @@ var (
 	// a normal Task.
 	taskcurrent = &Task{ID: 0}
 
+	// schedulerTask is a sentinel value installed into taskcurrent
+	// while taskschedule is running. It should never be present in
+	// the sleep or run queues, and should crash if accessed.
+	schedulerTask *Task = nil
+
 	taskrunqueue   TaskList
 	tasksleepqueue TaskList
 	taskcache      taskCache
@@ -89,7 +94,9 @@ func taskyield() {
 
 //go:nosplit
 func taskswitch() {
-	contextsave(&taskcurrent.Context, funcPC(taskschedule))
+	ctx := &taskcurrent.Context
+	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(schedulerTask))
+	contextsave(ctx, funcPC(taskschedule))
 }
 
 func contextswitch(r *cpuRegisters) bool {
@@ -97,8 +104,10 @@ func contextswitch(r *cpuRegisters) bool {
 		return false
 	}
 
-	taskcurrent.Context.r = *r
-	taskready(taskcurrent)
+	if taskcurrent != schedulerTask {
+		taskcurrent.Context.r = *r
+		taskready(taskcurrent)
+	}
 
 	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(taskrunqueue.Head))
 	taskrunqueue.Remove(taskcurrent)
@@ -107,13 +116,11 @@ func contextswitch(r *cpuRegisters) bool {
 }
 
 func taskschedule() {
-	var tasknext *Task
-
 	saved := irqDisable()
 	for {
 		taskwakeready(nanotime())
 
-		if tasknext = taskrunqueue.Head; tasknext != nil {
+		if taskrunqueue.Head != nil {
 			break
 		}
 
@@ -125,10 +132,12 @@ func taskschedule() {
 		HYPERVISOR_sched_op(1, nil) // block
 		irqDisable()
 	}
+
+	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(taskrunqueue.Head))
+	taskrunqueue.Remove(taskcurrent)
+
 	irqRestore(saved)
 
-	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(tasknext))
-	taskrunqueue.Remove(taskcurrent)
 	contextload(&taskcurrent.Context)
 }
 
