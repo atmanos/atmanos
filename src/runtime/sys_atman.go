@@ -52,14 +52,19 @@ type xenStartInfo struct {
 	SharedInfoAddr uintptr // machine address of share info struct
 	SIFFlags       uint32
 	_              [4]byte
-	StoreMfn       uint64 // machine page number of shared page
-	StoreEventchn  uint32
-	_              [4]byte
-	Console        struct {
+
+	Store struct {
+		Mfn      mfn // machine page number of shared page
+		Eventchn uint32
+		_        [4]byte
+	}
+
+	Console struct {
 		Mfn      mfn    // machine page number of console page
 		Eventchn uint32 // event channel
 		_        [4]byte
 	}
+
 	PageTableBase     vaddr // virtual address of page directory
 	NrPageTableFrames uint64
 	PageFrameList     uintptr // virtual address of page-frame list
@@ -124,8 +129,8 @@ func atmaninit() {
 	println("     nr_pages: ", _atman_start_info.NrPages)
 	println("  shared_info: ", _atman_start_info.SharedInfoAddr)
 	println("   siff_flags: ", _atman_start_info.SIFFlags)
-	println("    store_mfn: ", _atman_start_info.StoreMfn)
-	println("    store_evc: ", _atman_start_info.StoreEventchn)
+	println("    store_mfn: ", _atman_start_info.Store.Mfn)
+	println("    store_evc: ", _atman_start_info.Store.Eventchn)
 	println("  console_mfn: ", _atman_start_info.Console.Mfn)
 	println("  console_evc: ", _atman_start_info.Console.Eventchn)
 	println("      pt_base: ", _atman_start_info.PageTableBase)
