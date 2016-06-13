@@ -4,6 +4,11 @@ import "unsafe"
 
 func hypercall(trap, a1, a2, a3, a4, a5, a6 uintptr) uintptr
 
+//go:linkname hypercall_HypercallRaw atman/xen/hypercall.HypercallRaw
+func hypercall_HypercallRaw(trap, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+	return hypercall(trap, a1, a2, a3, a4, a5, a6)
+}
+
 func HYPERVISOR_console_io(op uint64, size uint64, data uintptr) uintptr {
 	const _HYPERVISOR_console_io = 18
 

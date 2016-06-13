@@ -51,6 +51,20 @@ func memAlloc(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return _atman_mm.allocPages(v, requiredPages)
 }
 
+//go:linkname mapFrames atman/mm.MapFrames
+func mapFrames(frames []uintptr) unsafe.Pointer {
+	data := _atman_mm.reserveHeapPages(uint64(len(frames)))
+	addr := vaddr(data)
+
+	for _, frame := range frames {
+		_atman_mm.mapPage(addr, mfn(frame))
+
+		addr += vaddr(_PAGESIZE)
+	}
+
+	return data
+}
+
 var _atman_mm = &atmanMemoryManager{}
 
 type atmanMemoryManager struct {
@@ -121,6 +135,15 @@ func (mm *atmanMemoryManager) allocPages(v unsafe.Pointer, n uint64) unsafe.Poin
 
 // allocPage makes page a writeable userspace page.
 func (mm *atmanMemoryManager) allocPage(page vaddr) bool {
+	pfn, ok := mm.physAllocPage()
+	if !ok {
+		return false
+	}
+
+	return mm.mapPage(page, pfn)
+}
+
+func (mm *atmanMemoryManager) mapPage(page vaddr, pageMfn mfn) bool {
 	var (
 		l4offset = page.pageTableOffset(pageTableLevel4)
 		l3offset = page.pageTableOffset(pageTableLevel3)
@@ -161,11 +184,7 @@ func (mm *atmanMemoryManager) allocPage(page vaddr) bool {
 		l1pte = mm.writePte(l2pte.pfn(), l2offset, pfn, PTE_PAGE_TABLE_FLAGS|xenPageTableWritable)
 	}
 
-	pfn, ok := mm.physAllocPage()
-	if !ok {
-		return false
-	}
-	mm.writePte(l1pte.pfn(), l1offset, pfn, PTE_PAGE_FLAGS)
+	mm.writePte(l1pte.pfn(), l1offset, pageMfn, PTE_PAGE_FLAGS)
 
 	// ensure page is writable
 	*(*uintptr)(unsafe.Pointer(page)) = 0x0
@@ -193,14 +212,14 @@ func (mm *atmanMemoryManager) getPageTable(a, b, c int) xenPageTable {
 	return newXenPageTable(addr)
 }
 
-func (mm *atmanMemoryManager) physAllocPage() (pfn, bool) {
+func (mm *atmanMemoryManager) physAllocPage() (mfn, bool) {
 	pfn, ok := mm.reservePFN()
 	if !ok {
-		return pfn, false
+		return 0, false
 	}
 
 	mm.clearPage(pfn)
-	return pfn, true
+	return pfn.mfn(), true
 }
 
 func (mm *atmanMemoryManager) pageTableWalk(addr vaddr) {
@@ -281,7 +300,7 @@ func (mm *atmanMemoryManager) reservePFN() (pfn, bool) {
 // mapL4 sets up recursively mapped page table
 // from the initial bootstrap page tables.
 func (mm *atmanMemoryManager) mapL4(pfn pfn) xenPageTable {
-	mm.writePte(pfn, 511, pfn, PTE_PAGE_TABLE_FLAGS)
+	mm.writePte(pfn, 511, pfn.mfn(), PTE_PAGE_TABLE_FLAGS)
 
 	return mm.getPageTable(-1, -1, -1)
 }
@@ -311,8 +330,8 @@ func (mm *atmanMemoryManager) mmuExtOp(ops []mmuExtOp) {
 	}
 }
 
-func (mm *atmanMemoryManager) writePte(table pfn, offset int, value pfn, flags uintptr) pageTableEntry {
-	newpte := pageTableEntry(value.mfn() << xenPageFlagShift)
+func (mm *atmanMemoryManager) writePte(table pfn, offset int, value mfn, flags uintptr) pageTableEntry {
+	newpte := pageTableEntry(value << xenPageFlagShift)
 	newpte.setFlag(flags)
 
 	updates := []mmuUpdate{
