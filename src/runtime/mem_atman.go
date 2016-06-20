@@ -66,7 +66,7 @@ func mapFrames(frames []uintptr) unsafe.Pointer {
 }
 
 //go:linkname mm_runtime_allocPage atman/mm.runtime_allocPage
-func mm_runtime_allocPage() (frame uintptr, size int, data unsafe.Pointer) {
+func mm_runtime_allocPage() (frame uintptr, data []byte) {
 	mfn, ok := _atman_mm.physAllocPage()
 	if !ok {
 		panic("mm_runtime_allocPage: unable to reserve page")
@@ -78,7 +78,9 @@ func mm_runtime_allocPage() (frame uintptr, size int, data unsafe.Pointer) {
 		panic("mm_runtime_allocPage: unable to map page")
 	}
 
-	return uintptr(mfn), _PAGESIZE, page
+	initSlice(unsafe.Pointer(&data), page, _PAGESIZE)
+
+	return uintptr(mfn), data
 }
 
 var _atman_mm = &atmanMemoryManager{}
