@@ -28,3 +28,21 @@ func GrantTableOp(cmd uintptr, op unsafe.Pointer) uintptr {
 		0,
 	)
 }
+
+const (
+	EVTCHNOP_alloc_unbound = 6
+)
+
+func EventChannelOp(cmd uintptr, op unsafe.Pointer) uintptr {
+	const _event_channel_op = 32
+
+	return HypercallRaw(
+		_event_channel_op,
+		cmd,
+		uintptr(op),
+		0,
+		0,
+		0,
+		0,
+	)
+}
