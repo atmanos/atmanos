@@ -4,6 +4,7 @@ import (
 	"atman/ring"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"io/ioutil"
 	"runtime"
@@ -12,6 +13,8 @@ import (
 	"sync/atomic"
 	"unsafe"
 )
+
+var ErrRetry = errors.New("EAGAIN")
 
 type xenStore struct {
 	port uint32
@@ -171,6 +174,23 @@ type Response struct {
 
 func (rsp *Response) ReadString() (string, error) {
 	return rsp.buf.ReadString(0)
+}
+
+func (rsp *Response) Err() error {
+	if rsp.Type != TypeError {
+		return nil
+	}
+
+	msg, err := rsp.ReadString()
+	if err != nil {
+		return err
+	}
+
+	if msg == "EAGAIN" {
+		return ErrRetry
+	}
+
+	return errors.New(msg)
 }
 
 func (rsp *Response) ReadUint32() (uint32, error) {
