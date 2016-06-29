@@ -4,7 +4,6 @@ import (
 	"atman/ring"
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"io"
 	"io/ioutil"
 	"runtime"
@@ -13,8 +12,6 @@ import (
 	"sync/atomic"
 	"unsafe"
 )
-
-var ErrRetry = errors.New("EAGAIN")
 
 type xenStore struct {
 	port uint32
@@ -162,7 +159,7 @@ func (r *Request) WriteBytes(b []byte) {
 }
 
 func (r *Request) WriteUint32(i uint32) {
-	r.buf.WriteString(strconv.Itoa(int(i)))
+	r.WriteString(strconv.Itoa(int(i)))
 }
 
 type Response struct {
@@ -172,8 +169,15 @@ type Response struct {
 	buf *bytes.Buffer
 }
 
+// ReadString reads the next null-terminated value from the response
+// and returns it as a string (without the null terminator).
 func (rsp *Response) ReadString() (string, error) {
-	return rsp.buf.ReadString(0)
+	s, err := rsp.buf.ReadString(0)
+	if err != nil {
+		return "", err
+	}
+
+	return s[:len(s)-1], nil
 }
 
 func (rsp *Response) Err() error {
@@ -186,11 +190,7 @@ func (rsp *Response) Err() error {
 		return err
 	}
 
-	if msg == "EAGAIN" {
-		return ErrRetry
-	}
-
-	return errors.New(msg)
+	return responseError(msg)
 }
 
 func (rsp *Response) ReadUint32() (uint32, error) {

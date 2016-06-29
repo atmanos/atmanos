@@ -1,5 +1,9 @@
 package xenstore
 
+import (
+	"strconv"
+)
+
 type Transaction struct {
 	id  uint32
 	err error
@@ -24,13 +28,36 @@ func (tx *Transaction) start() error {
 		return err
 	}
 
-	id, err := rsp.ReadUint32()
+	s, err := rsp.ReadString()
 	if err != nil {
 		return err
 	}
 
-	tx.id = id
+	id, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		return err
+	}
+
+	tx.id = uint32(id)
 	return nil
+}
+
+func (tx *Transaction) ReadInt(path string) (int, error) {
+	if tx.err != nil {
+		return 0, tx.err
+	}
+
+	req := NewRequest(TypeRead, tx.id)
+	req.WriteString(path)
+
+	rsp := Send(req)
+	if err := rsp.Err(); err != nil {
+		tx.abortWith(annotateError(TypeRead, path, err))
+		return 0, err
+	}
+
+	i, err := rsp.ReadUint32()
+	return int(i), err
 }
 
 func (tx *Transaction) WriteInt(path string, i int) {
@@ -39,16 +66,14 @@ func (tx *Transaction) WriteInt(path string, i int) {
 	}
 
 	req := NewRequest(TypeWrite, tx.id)
+	req.WriteString(path)
 	req.WriteUint32(uint32(i))
 
 	rsp := Send(req)
 	if err := rsp.Err(); err != nil {
-		tx.abortWith(err)
+		tx.abortWith(annotateError(TypeWrite, path, err))
 		return
 	}
-}
-
-func (tx *Transaction) SwitchState(path string, state int) {
 }
 
 func (tx *Transaction) abortWith(err error) {
@@ -69,5 +94,14 @@ func (tx *Transaction) Commit() (committed bool, err error) {
 	req.WriteString("T")
 
 	err = Send(req).Err()
-	return err == ErrRetry, err
+
+	if isRetry(err) {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
