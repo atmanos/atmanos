@@ -48,3 +48,38 @@ type EthernetHeader struct {
 	Source      HardwareAddr
 	Type        EtherType
 }
+
+type EthernetArpHeader struct {
+	HardwareType uint16 // 1
+	ProtocolType uint16 // 0x0800
+	HardwareLen  uint8  // 6
+	ProtocolLen  uint8  // 4
+	OpCode       uint16
+
+	SenderHardwareAddress HardwareAddr
+	SenderIPAddr          IPAddr
+	TargetHardwareAddress HardwareAddr
+	TargetIPAddr          IPAddr
+}
+
+type IPv4Header struct {
+	// 0-3 bits version = 4
+	// 4-7 bits header length
+	Version         uint8
+	TypeOfService   uint8
+	TotalLength     uint16
+	ID              uint16
+	FragmentOffset  uint16
+	TTL             uint8
+	Protocol        uint8
+	Checksum        uint16
+	SourceAddr      IPAddr
+	DestinationAddr IPAddr
+}
+
+type ICMPHeader struct {
+	Type     uint8
+	Code     uint8
+	Checksum uint16
+	Data     uint32
+}
