@@ -19,11 +19,8 @@ type netifTxResponse struct {
 	Status int16
 }
 
-func newTxRing(page *mm.Page) *xen.FrontendRing {
-	return xen.NewFrontendRing(
-		(*xen.SharedRing)(page.Ptr),
-		txRingEntrySize(),
-	)
+func newTxRing(r *xen.SharedRing) *xen.FrontendRing {
+	return xen.NewFrontendRing(r, txRingEntrySize())
 }
 
 func txRingEntrySize() int {
@@ -49,11 +46,8 @@ type netifRxResponse struct {
 	Status int16
 }
 
-func newRxRing(page *mm.Page) *xen.FrontendRing {
-	return xen.NewFrontendRing(
-		(*xen.SharedRing)(page.Ptr),
-		rxRingEntrySize(),
-	)
+func newRxRing(r *xen.SharedRing) *xen.FrontendRing {
+	return xen.NewFrontendRing(r, rxRingEntrySize())
 }
 
 func rxRingEntrySize() int {
@@ -64,4 +58,12 @@ func rxRingEntrySize() int {
 	}
 
 	return int(size)
+}
+
+func initSharedRing(page *mm.Page) *xen.SharedRing {
+	ring := (*xen.SharedRing)(page.Ptr)
+	ring.RequestEvent = 1
+	ring.ResponseEvent = 1
+
+	return ring
 }

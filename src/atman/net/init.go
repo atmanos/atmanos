@@ -46,13 +46,14 @@ func initNetworking() {
 
 	// setup tx freelist
 	txPage := mm.AllocPage()
-	dev.Tx = newTxRing(txPage)
+	dev.Tx = newTxRing(initSharedRing(txPage))
 	dev.TxGref = mustGrantAccess(dev.Backend, txPage.Frame, false)
 
 	rxPage := mm.AllocPage()
-	dev.Rx = newRxRing(rxPage)
+	dev.Rx = newRxRing(initSharedRing(rxPage))
 	dev.RxGref = mustGrantAccess(dev.Backend, rxPage.Frame, false)
 	dev.RxBuffers = make([]buffer, dev.Rx.EntryCount)
+
 	initRxPages(dev)
 
 	if err := dev.register(); err != nil {
