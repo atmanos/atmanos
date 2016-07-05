@@ -116,6 +116,18 @@ const (
 )
 
 const (
+	StateUnknown = iota
+	StateInitialising
+	StateInitWait
+	StateInitialised
+	StateConnected
+	StateClosing
+	StateClosed
+	StateReconfiguring
+	StateReconfigured
+)
+
+const (
 	WatchPath = iota
 	WatchToken
 )
