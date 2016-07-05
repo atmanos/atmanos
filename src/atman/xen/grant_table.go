@@ -10,7 +10,7 @@ const (
 	DOMID_SELF = 0x7FF0
 
 	grantTableMaxFrames = 4
-	grantTableNrEntries = 0x1000 / unsafe.Sizeof(GrantTableEntry{})
+	grantTableNrEntries = grantTableMaxFrames * int(0x1000/unsafe.Sizeof(GrantTableEntry{}))
 
 	grantTableNrReserved = 8
 )
@@ -43,8 +43,8 @@ func setupGrantTable(nrFrames int) *GrantTable {
 
 	grefs := make(grefFreeList, 0, grantTableNrEntries)
 
-	for i := grantTableNrReserved; i < grantTableMaxFrames; i++ {
-		grefs.put(gref(i))
+	for i := grantTableNrReserved; i < grantTableNrEntries; i++ {
+		grefs.put(Gref(i))
 	}
 
 	return &GrantTable{
@@ -53,7 +53,7 @@ func setupGrantTable(nrFrames int) *GrantTable {
 	}
 }
 
-func (t *GrantTable) GrantAccess(domid uint16, frame uintptr, readOnly bool) (gref, bool) {
+func (t *GrantTable) GrantAccess(domid uint16, frame uintptr, readOnly bool) (Gref, bool) {
 	gref, ok := t.grefs.get()
 	if !ok {
 		return gref, ok
@@ -72,7 +72,7 @@ func (t *GrantTable) GrantAccess(domid uint16, frame uintptr, readOnly bool) (gr
 	return gref, true
 }
 
-func (t *GrantTable) EndAccess(gref gref) bool {
+func (t *GrantTable) EndAccess(gref Gref) bool {
 	for {
 		flags := t.entries[gref].Flags
 
@@ -117,13 +117,13 @@ type GrantTableEntry struct {
 	Frame uintptr
 }
 
-type gref int
+type Gref uint32
 
 // grefFreeList is a free-list of grefs, where each gref
 // is an index to an unused entry in the grant table.
-type grefFreeList []gref
+type grefFreeList []Gref
 
-func (l *grefFreeList) get() (gref, bool) {
+func (l *grefFreeList) get() (Gref, bool) {
 	s := *l
 	if len(s) == 0 {
 		return 0, false
@@ -133,7 +133,7 @@ func (l *grefFreeList) get() (gref, bool) {
 	return gref, true
 }
 
-func (l *grefFreeList) put(gref gref) {
+func (l *grefFreeList) put(gref Gref) {
 	old := *l
 	*l = append(old, gref)
 }
