@@ -277,3 +277,9 @@ var requestID uint32
 func nextRequestID() uint32 {
 	return atomic.AddUint32(&requestID, 1)
 }
+
+func Read(path string) *Response {
+	req := NewRequest(TypeRead, 0)
+	req.WriteString(path)
+	return Send(req)
+}
