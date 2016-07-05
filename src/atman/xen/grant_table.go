@@ -64,9 +64,9 @@ func (t *GrantTable) GrantAccess(domid uint16, frame uintptr, readOnly bool) (Gr
 		flags |= hypercall.GTF_readonly
 	}
 
-	t.entries[gref].Frame = frame
+	t.entries[gref].Frame = uint32(frame)
 	t.entries[gref].DomID = domid
-	// TODO: wmb()
+	MemoryBarrierWrite()
 	t.entries[gref].Flags = uint16(flags)
 
 	return gref, true
@@ -113,8 +113,7 @@ func loadGrantFrames(frames []uintptr) uintptr {
 type GrantTableEntry struct {
 	Flags uint16
 	DomID uint16
-	_     uint32
-	Frame uintptr
+	Frame uint32
 }
 
 type Gref uint32
