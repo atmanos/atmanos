@@ -173,6 +173,20 @@ func (rsp *Response) ReadString() (string, error) {
 	return rsp.buf.ReadString(0)
 }
 
+func (rsp *Response) ReadUint32() (uint32, error) {
+	b, err := rsp.ReadBytes()
+	if err != nil {
+		return 0, err
+	}
+
+	i, err := strconv.ParseInt(string(b), 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(i), nil
+}
+
 func (rsp *Response) ReadBytes() ([]byte, error) {
 	return ioutil.ReadAll(rsp.buf)
 }
