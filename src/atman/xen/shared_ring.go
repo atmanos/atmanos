@@ -70,6 +70,15 @@ func (r *FrontendRing) NextRequest() unsafe.Pointer {
 	return req
 }
 
+// NextResponse returns a pointer to the next response,
+// advancing the private consumer index.
+func (r *FrontendRing) NextResponse() unsafe.Pointer {
+	rsp := r.get(r.ResponseConsumer)
+	r.ResponseConsumer++
+
+	return rsp
+}
+
 // get returns a pointer to the entry at index i.
 func (r *FrontendRing) get(i uint32) unsafe.Pointer {
 	offset := i & (r.EntryCount - 1)
@@ -101,4 +110,28 @@ func (r *FrontendRing) PushRequests() (notify bool) {
 	// The expression is equivalent to event > old,
 	// but handles overflow of the index type.
 	return (new - event) < (new - old)
+}
+
+// CheckForResponses checks for unconsumed responses,
+// returning true if there is more work to do.
+//
+// When there is no more work to do, it notifies the backend
+// that all responses have been consumed.
+func (r *FrontendRing) CheckForResponses() (more bool) {
+	if r.hasUnconsumedResponses() {
+		return true
+	}
+
+	r.SharedRing.ResponseEvent = r.ResponseConsumer + 1
+
+	MemoryBarrier() // backend sees request for notification
+
+	return r.hasUnconsumedResponses()
+}
+
+// hasUnconsumedResponses returns true if there are unconsumed responses.
+func (r *FrontendRing) hasUnconsumedResponses() bool {
+	unconsumed := r.SharedRing.ResponseProducer - r.ResponseConsumer
+
+	return unconsumed != 0
 }
