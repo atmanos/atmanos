@@ -18,7 +18,7 @@ const (
 var grantTable *GrantTable
 
 type GrantTable struct {
-	entries []GrantTableEntry
+	Entries []GrantTableEntry
 
 	grefs grefFreeList
 }
@@ -48,7 +48,7 @@ func setupGrantTable(nrFrames int) *GrantTable {
 	}
 
 	return &GrantTable{
-		entries: table[:],
+		Entries: table[:],
 		grefs:   grefs,
 	}
 }
@@ -64,24 +64,24 @@ func (t *GrantTable) GrantAccess(domid uint16, frame uintptr, readOnly bool) (Gr
 		flags |= hypercall.GTF_readonly
 	}
 
-	t.entries[gref].Frame = uint32(frame)
-	t.entries[gref].DomID = domid
+	t.Entries[gref].Frame = uint32(frame)
+	t.Entries[gref].DomID = domid
 	MemoryBarrierWrite()
-	t.entries[gref].Flags = uint16(flags)
+	t.Entries[gref].Flags = uint16(flags)
 
 	return gref, true
 }
 
 func (t *GrantTable) EndAccess(gref Gref) bool {
 	for {
-		flags := t.entries[gref].Flags
+		flags := t.Entries[gref].Flags
 
 		if flags&(hypercall.GTF_reading|hypercall.GTF_writing) != 0 {
 			return false
 		}
 
-		// TODO: compareAndSwapUint16(&t.entries[gref].Flags, flags, 0)
-		t.entries[gref].Flags = 0
+		// TODO: compareAndSwapUint16(&t.Entries[gref].Flags, flags, 0)
+		t.Entries[gref].Flags = 0
 		break
 	}
 
