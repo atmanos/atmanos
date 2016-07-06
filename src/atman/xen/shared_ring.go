@@ -15,7 +15,7 @@ type SharedRing struct {
 	ResponseProducer uint32
 	ResponseEvent    uint32
 
-	_ uint64    // private union data for backend
+	_ [4]uint8  // private union data for backend
 	_ [44]uint8 // pad to 512 bytes
 
 	// The remainder of the ring page is available for data.
