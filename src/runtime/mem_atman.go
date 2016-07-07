@@ -240,65 +240,6 @@ func (mm *atmanMemoryManager) physAllocPage() (mfn, bool) {
 	return pfn.mfn(), true
 }
 
-func (mm *atmanMemoryManager) pageTableWalk(addr vaddr) {
-	var (
-		l4offset = addr.pageTableOffset(pageTableLevel4)
-		l3offset = addr.pageTableOffset(pageTableLevel3)
-		l2offset = addr.pageTableOffset(pageTableLevel2)
-		l1offset = addr.pageTableOffset(pageTableLevel1)
-
-		l4 = mm.l4
-	)
-
-	println("page table walk from", unsafe.Pointer(addr))
-	print("L4[")
-	print(l4offset)
-	print("] = ")
-
-	l3pte := l4.Get(l4offset)
-	l3pte.debug()
-
-	if !l3pte.hasFlag(xenPageTablePresent) {
-		return
-	}
-
-	l3 := mm.getPageTable(-1, -1, l4offset)
-	print("L3[")
-	print(l3offset)
-	print("] = ")
-
-	l2pte := l3.Get(l3offset)
-	l2pte.debug()
-
-	if !l2pte.hasFlag(xenPageTablePresent) {
-		return
-	}
-
-	l2 := mm.getPageTable(-1, l4offset, l3offset)
-	print("L2[")
-	print(l2offset)
-	print("] = ")
-
-	l1pte := l2.Get(l2offset)
-	l1pte.debug()
-
-	if !l1pte.hasFlag(xenPageTablePresent) {
-		return
-	}
-
-	l1 := mm.getPageTable(l4offset, l3offset, l2offset)
-	print("L1[")
-	print(l1offset)
-	print("] = ")
-
-	l0pte := l1.Get(l1offset)
-	l0pte.debug()
-
-	if !l0pte.hasFlag(xenPageTablePresent) {
-		return
-	}
-}
-
 func (mm *atmanMemoryManager) reserveHeapPages(n uint64) unsafe.Pointer {
 	var p vaddr
 	p, mm.nextHeapPage = mm.nextHeapPage, mm.nextHeapPage+vaddr(n*_PAGESIZE)
