@@ -95,7 +95,8 @@ func mustGrantAccess(dom uint32, frame uintptr, readonly bool) xen.Gref {
 }
 
 func initRxPages(dev *Device) {
-	for i, buf := range dev.RxBuffers {
+	for i := range dev.RxBuffers {
+		buf := &dev.RxBuffers[i]
 		buf.Page = mm.AllocPage()
 		buf.Gref = mustGrantAccess(dev.Backend, buf.Page.Frame, false)
 
