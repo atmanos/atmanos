@@ -9,8 +9,10 @@ import (
 
 var grantTable = xen.MapGrantTable()
 
+var DefaultDevice *Device
+
 func init() {
-	initNetworking()
+	DefaultDevice = initNetworking()
 }
 
 type buffer struct {
@@ -29,9 +31,12 @@ type Device struct {
 	RxGref    xen.Gref
 
 	EventChannel *xen.EventChannel
+
+	MacAddr []byte
+	IPAddr  []byte
 }
 
-func initNetworking() {
+func initNetworking() *Device {
 	dev := &Device{}
 
 	backendDomID, err := xenstore.Read("device/vif/0/backend-id").ReadUint32()
@@ -58,22 +63,25 @@ func initNetworking() {
 
 	if err := dev.register(); err != nil {
 		println("Failed to register device: ", err.Error())
-		return
+		return nil
 	}
 
-	backend, _ := xenstore.Read(dev.xenstorePath("backend")).ReadBytes()
-	mac, _ := xenstore.Read(dev.xenstorePath("mac")).ReadBytes()
+	dev.MacAddr, _ = xenstore.Read(dev.xenstorePath("mac")).ReadBytes()
 
-	fmt.Printf("net: backend=%q mac=%v (%q)\n", backend, mac, mac)
+	backend, _ := xenstore.Read(dev.xenstorePath("backend")).ReadBytes()
 
 	state, _ := xenstore.Read(string(backend) + "/state").ReadUint32()
 	if state != xenstore.StateConnected {
 		fmt.Println("net: backend state=%v waiting for connection", state)
-		return
+		return nil
 	}
 
-	ip, _ := xenstore.Read(string(backend) + "/ip").ReadBytes()
-	fmt.Printf("net: ip=%v (%q)\n", ip, ip)
+	ip, err := xenstore.Read(string(backend) + "/ip").ReadBytes()
+	if err == nil {
+		dev.IPAddr = ip
+	}
+
+	return dev
 }
 
 func mustGrantAccess(dom uint32, frame uintptr, readonly bool) xen.Gref {
