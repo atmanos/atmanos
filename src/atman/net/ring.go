@@ -6,7 +6,7 @@ import (
 	"unsafe"
 )
 
-type netifTxRequest struct {
+type NetifTxRequest struct {
 	Gref   xen.Gref
 	Offset uint16
 	Flags  uint16
@@ -14,7 +14,7 @@ type netifTxRequest struct {
 	Size   uint16
 }
 
-type netifTxResponse struct {
+type NetifTxResponse struct {
 	ID     uint16
 	Status int16
 }
@@ -24,22 +24,22 @@ func newTxRing(r *xen.SharedRing) *xen.FrontendRing {
 }
 
 func txRingEntrySize() int {
-	size := unsafe.Sizeof(netifTxRequest{})
+	size := unsafe.Sizeof(NetifTxRequest{})
 
-	if rspSize := unsafe.Sizeof(netifTxResponse{}); rspSize > size {
+	if rspSize := unsafe.Sizeof(NetifTxResponse{}); rspSize > size {
 		size = rspSize
 	}
 
 	return int(size)
 }
 
-type netifRxRequest struct {
+type NetifRxRequest struct {
 	ID   uint16
 	_    uint16
 	Gref xen.Gref
 }
 
-type netifRxResponse struct {
+type NetifRxResponse struct {
 	ID     uint16
 	Offset uint16
 	Flags  uint16
@@ -51,9 +51,9 @@ func newRxRing(r *xen.SharedRing) *xen.FrontendRing {
 }
 
 func rxRingEntrySize() int {
-	size := unsafe.Sizeof(netifRxRequest{})
+	size := unsafe.Sizeof(NetifRxRequest{})
 
-	if rspSize := unsafe.Sizeof(netifRxResponse{}); rspSize > size {
+	if rspSize := unsafe.Sizeof(NetifRxResponse{}); rspSize > size {
 		size = rspSize
 	}
 

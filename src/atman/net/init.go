@@ -91,7 +91,7 @@ func initRxPages(dev *Device) {
 		buf.Page = mm.AllocPage()
 		buf.Gref = mustGrantAccess(dev.Backend, buf.Page.Frame, false)
 
-		req := (*netifRxRequest)(dev.Rx.NextRequest())
+		req := (*NetifRxRequest)(dev.Rx.NextRequest())
 		req.ID = uint16(i)
 		req.Gref = buf.Gref
 	}
