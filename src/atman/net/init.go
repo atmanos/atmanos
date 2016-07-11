@@ -12,7 +12,12 @@ var grantTable = xen.MapGrantTable()
 var DefaultDevice *Device
 
 func init() {
-	DefaultDevice = initNetworking()
+	dev, err := initNetworking()
+	if err != nil {
+		panic(err)
+	}
+
+	DefaultDevice = dev
 }
 
 type buffer struct {
@@ -36,14 +41,14 @@ type Device struct {
 	IPAddr  []byte
 }
 
-func initNetworking() *Device {
+// initNetworking sets up the default network device.
+func initNetworking() (*Device, error) {
 	dev := &Device{}
 
 	backendDomID, err := xenstore.Read("device/vif/0/backend-id").ReadUint32()
 
 	if err != nil {
-		println("Unable to read device/vif/0/backend-id")
-		panic(err)
+		return nil, fmt.Errorf("atman/net: unable to read device: %s", err)
 	}
 
 	dev.Backend = backendDomID
@@ -61,25 +66,18 @@ func initNetworking() *Device {
 	initRxPages(dev)
 
 	if err := dev.register(); err != nil {
-		println("Failed to register device: ", err.Error())
-		return nil
+		return nil, fmt.Errorf("atman/net: failed to register device: %s", err)
 	}
 
-	dev.finalizeConnection()
-
-	return dev
-}
-
-func mustGrantAccess(dom uint32, frame uintptr, readonly bool) xen.Gref {
-	gref, ok := grantTable.GrantAccess(uint16(dom), frame, readonly)
-
-	if !ok {
-		panic("unable to grant access to page")
+	if err := dev.finalizeConnection(); err != nil {
+		return nil, fmt.Errorf("atman/net: failed to finalize connection: %s", err)
 	}
 
-	return gref
+	return dev, nil
 }
 
+// initRxPages allocates buffers for receiving rx packets
+// and sends them to the backend.
 func initRxPages(dev *Device) {
 	for i := range dev.RxBuffers {
 		buf := &dev.RxBuffers[i]
@@ -121,13 +119,19 @@ func (dev *Device) register() error {
 
 // finalizeConnection waits for the backend connection to be ready,
 // and reads the device's intended mac and ip addresses.
-func (dev *Device) finalizeConnection() {
-	backend, _ := xenstore.Read(dev.xenstorePath("backend")).ReadBytes()
+func (dev *Device) finalizeConnection() error {
+	backend, err := xenstore.Read(dev.xenstorePath("backend")).ReadBytes()
+	if err != nil {
+		return fmt.Errorf("atman/net: failed to read backend path: %s", err)
+	}
 
-	state, _ := xenstore.Read(string(backend) + "/state").ReadUint32()
+	state, err := xenstore.Read(string(backend) + "/state").ReadUint32()
+	if err != nil {
+		return fmt.Errorf("atman/net: failed to read backend state: %s", err)
+	}
+
 	if state != xenstore.StateConnected {
-		fmt.Println("net: backend state=%v waiting for connection", state)
-		return
+		return fmt.Errorf("atman/net: backend not connected (state=%v)", state)
 	}
 
 	ip, err := xenstore.Read(string(backend) + "/ip").ReadBytes()
@@ -135,9 +139,25 @@ func (dev *Device) finalizeConnection() {
 		dev.IPAddr = ip
 	}
 
-	dev.MacAddr, _ = xenstore.Read(dev.xenstorePath("mac")).ReadBytes()
+	mac, err := xenstore.Read(dev.xenstorePath("mac")).ReadBytes()
+	if err != nil {
+		return fmt.Errorf("atman/net: failed to read mac: %s", err)
+	}
+	dev.MacAddr = mac
+
+	return nil
 }
 
 func (dev *Device) xenstorePath(path string) string {
 	return "device/vif/0/" + path
+}
+
+func mustGrantAccess(dom uint32, frame uintptr, readonly bool) xen.Gref {
+	gref, ok := grantTable.GrantAccess(uint16(dom), frame, readonly)
+
+	if !ok {
+		panic("unable to grant access to page")
+	}
+
+	return gref
 }
