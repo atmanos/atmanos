@@ -49,7 +49,6 @@ func initNetworking() *Device {
 	dev.Backend = backendDomID
 	dev.EventChannel = xen.NewEventChannel(backendDomID)
 
-	// setup tx freelist
 	txPage := mm.AllocPage()
 	dev.Tx = newTxRing(initSharedRing(txPage))
 	dev.TxGref = mustGrantAccess(dev.Backend, txPage.Frame, false)
@@ -66,20 +65,7 @@ func initNetworking() *Device {
 		return nil
 	}
 
-	dev.MacAddr, _ = xenstore.Read(dev.xenstorePath("mac")).ReadBytes()
-
-	backend, _ := xenstore.Read(dev.xenstorePath("backend")).ReadBytes()
-
-	state, _ := xenstore.Read(string(backend) + "/state").ReadUint32()
-	if state != xenstore.StateConnected {
-		fmt.Println("net: backend state=%v waiting for connection", state)
-		return nil
-	}
-
-	ip, err := xenstore.Read(string(backend) + "/ip").ReadBytes()
-	if err == nil {
-		dev.IPAddr = ip
-	}
+	dev.finalizeConnection()
 
 	return dev
 }
@@ -131,6 +117,25 @@ func (dev *Device) register() error {
 	}
 
 	return nil
+}
+
+// finalizeConnection waits for the backend connection to be ready,
+// and reads the device's intended mac and ip addresses.
+func (dev *Device) finalizeConnection() {
+	backend, _ := xenstore.Read(dev.xenstorePath("backend")).ReadBytes()
+
+	state, _ := xenstore.Read(string(backend) + "/state").ReadUint32()
+	if state != xenstore.StateConnected {
+		fmt.Println("net: backend state=%v waiting for connection", state)
+		return
+	}
+
+	ip, err := xenstore.Read(string(backend) + "/ip").ReadBytes()
+	if err == nil {
+		dev.IPAddr = ip
+	}
+
+	dev.MacAddr, _ = xenstore.Read(dev.xenstorePath("mac")).ReadBytes()
 }
 
 func (dev *Device) xenstorePath(path string) string {
