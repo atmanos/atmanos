@@ -2,16 +2,13 @@
 	ADDQ	$0x0000000000000fff, REGISTER	\
 	ANDQ	$0xfffffffffffff000, REGISTER
 
-#define CALL_RBX \
-	BYTE $0xff; BYTE $0xd3	// callq *%rbx
-
 #define HYPERCALL(TRAP) \
 	MOVQ	TRAP, CX				\
 	IMULQ	$32, CX					\
 	MOVQ	$runtime·_atman_hypercall_page(SB), BX	\
 	_PAGE_ROUND_UP(BX)				\
 	ADDQ	CX, BX					\
-	CALL_RBX                                        \
+        CALL    BX
 
 #define READ_FS_BASE(r) \
 	MOVQ	$0xc0000100, CX	\ // MSR_FS_BASE
