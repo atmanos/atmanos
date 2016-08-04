@@ -6,6 +6,23 @@ import (
 
 type HardwareAddr [6]byte
 
+func ParseHardwareAddr(s string) HardwareAddr {
+	var addr HardwareAddr
+
+	fmt.Sscanf(
+		s,
+		"%02x:%02x:%02x:%02x:%02x:%02x",
+		&addr[0],
+		&addr[1],
+		&addr[2],
+		&addr[3],
+		&addr[4],
+		&addr[5],
+	)
+
+	return addr
+}
+
 func (addr HardwareAddr) String() string {
 	return fmt.Sprintf(
 		"%02x:%02x:%02x:%02x:%02x:%02x",
