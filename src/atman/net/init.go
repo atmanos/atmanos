@@ -20,19 +20,15 @@ func init() {
 	DefaultDevice = dev
 }
 
-type buffer struct {
-	Gref xen.Gref
-	*mm.Page
-}
-
 type Device struct {
 	Backend uint32
 
-	Tx     *xen.FrontendRing
-	TxGref xen.Gref
+	Tx        *xen.FrontendRing
+	TxBuffers *BufferPool
+	TxGref    xen.Gref
 
 	Rx        *xen.FrontendRing
-	RxBuffers []buffer
+	RxBuffers *BufferPool
 	RxGref    xen.Gref
 
 	EventChannel *xen.EventChannel
@@ -57,11 +53,12 @@ func initNetworking() (*Device, error) {
 	txPage := mm.AllocPage()
 	dev.Tx = newTxRing(initSharedRing(txPage))
 	dev.TxGref = mustGrantAccess(dev.Backend, txPage.Frame, false)
+	dev.TxBuffers = NewBufferPool(int(dev.Tx.EntryCount))
 
 	rxPage := mm.AllocPage()
 	dev.Rx = newRxRing(initSharedRing(rxPage))
 	dev.RxGref = mustGrantAccess(dev.Backend, rxPage.Frame, false)
-	dev.RxBuffers = make([]buffer, dev.Rx.EntryCount)
+	dev.RxBuffers = NewBufferPool(int(dev.Rx.EntryCount))
 
 	initRxPages(dev)
 
@@ -79,13 +76,16 @@ func initNetworking() (*Device, error) {
 // initRxPages allocates buffers for receiving rx packets
 // and sends them to the backend.
 func initRxPages(dev *Device) {
-	for i := range dev.RxBuffers {
-		buf := &dev.RxBuffers[i]
-		buf.Page = mm.AllocPage()
+	for {
+		buf, ok := dev.RxBuffers.Get()
+		if !ok {
+			break
+		}
+
 		buf.Gref = mustGrantAccess(dev.Backend, buf.Page.Frame, false)
 
 		req := (*NetifRxRequest)(dev.Rx.NextRequest())
-		req.ID = uint16(i)
+		req.ID = uint16(buf.ID)
 		req.Gref = buf.Gref
 	}
 
@@ -150,6 +150,17 @@ func (dev *Device) finalizeConnection() error {
 
 func (dev *Device) xenstorePath(path string) string {
 	return "device/vif/0/" + path
+}
+
+func (dev *Device) SendTxBuffer(buf *Buffer, size int) {
+	buf.Gref = mustGrantAccess(dev.Backend, buf.Page.Frame, true)
+
+	req := (*NetifTxRequest)(dev.Tx.NextRequest())
+	req.Gref = buf.Gref
+	req.Offset = 0
+	req.Flags = 0
+	req.ID = uint16(buf.ID)
+	req.Size = uint16(size)
 }
 
 func mustGrantAccess(dom uint32, frame uintptr, readonly bool) xen.Gref {
