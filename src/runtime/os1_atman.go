@@ -13,6 +13,8 @@ func osinit() {
 
 func sigpanic() {}
 
+func signame(sig uint32) string { return "" }
+
 func goenvs() {}
 
 //go:nowritebarrier
@@ -106,7 +108,7 @@ func semasleepInternal(ns int64) int32 {
 		s      = &sleeptable[sleeptablekey(addr)]
 	)
 
-	atomic.Storep1(unsafe.Pointer(&waiter.addr), unsafe.Pointer(addr))
+	atomic.StorepNoWB(unsafe.Pointer(&waiter.addr), unsafe.Pointer(addr))
 	waiter.up = false
 	s.add(waiter)
 
@@ -168,29 +170,29 @@ func (s *sema) removeWaiterOn(addr *uint32) *semawaiter {
 //go:nowritebarrier
 func (s *sema) remove(w *semawaiter) {
 	if w.prev != nil {
-		atomic.Storep1(unsafe.Pointer(&w.prev.next), unsafe.Pointer(w.next))
+		atomic.StorepNoWB(unsafe.Pointer(&w.prev.next), unsafe.Pointer(w.next))
 	} else {
-		atomic.Storep1(unsafe.Pointer(&s.head), unsafe.Pointer(w.next))
+		atomic.StorepNoWB(unsafe.Pointer(&s.head), unsafe.Pointer(w.next))
 	}
 
 	if w.next != nil {
-		atomic.Storep1(unsafe.Pointer(&w.next.prev), unsafe.Pointer(w.prev))
+		atomic.StorepNoWB(unsafe.Pointer(&w.next.prev), unsafe.Pointer(w.prev))
 	} else {
-		atomic.Storep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w.prev))
+		atomic.StorepNoWB(unsafe.Pointer(&s.tail), unsafe.Pointer(w.prev))
 	}
 }
 
 //go:nowritebarrier
 func (s *sema) add(w *semawaiter) {
 	if s.tail != nil {
-		atomic.Storep1(unsafe.Pointer(&s.tail.next), unsafe.Pointer(w))
-		atomic.Storep1(unsafe.Pointer(&w.prev), unsafe.Pointer(s.tail))
+		atomic.StorepNoWB(unsafe.Pointer(&s.tail.next), unsafe.Pointer(w))
+		atomic.StorepNoWB(unsafe.Pointer(&w.prev), unsafe.Pointer(s.tail))
 	} else {
-		atomic.Storep1(unsafe.Pointer(&s.head), unsafe.Pointer(w))
-		atomic.Storep1(unsafe.Pointer(&w.prev), nil)
+		atomic.StorepNoWB(unsafe.Pointer(&s.head), unsafe.Pointer(w))
+		atomic.StorepNoWB(unsafe.Pointer(&w.prev), nil)
 	}
 
-	atomic.Storep1(unsafe.Pointer(&s.tail), unsafe.Pointer(w))
+	atomic.StorepNoWB(unsafe.Pointer(&s.tail), unsafe.Pointer(w))
 	w.next = nil
 }
 

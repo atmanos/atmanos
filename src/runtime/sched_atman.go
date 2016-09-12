@@ -65,7 +65,7 @@ func taskcreate(mp, g0, fn, stk unsafe.Pointer) {
 	contextsave(&t.Context, 0)
 	t.Context.r.rsp = uintptr(stk)
 	t.Context.r.rip = funcPC(taskstart)
-	atomic.Storep1(unsafe.Pointer(&t.semawaiter.task), unsafe.Pointer(t))
+	atomic.StorepNoWB(unsafe.Pointer(&t.semawaiter.task), unsafe.Pointer(t))
 
 	taskid++
 	taskn++
@@ -113,7 +113,7 @@ func taskschedule() {
 	}
 	irqRestore(saved)
 
-	atomic.Storep1(unsafe.Pointer(&taskcurrent), unsafe.Pointer(tasknext))
+	atomic.StorepNoWB(unsafe.Pointer(&taskcurrent), unsafe.Pointer(tasknext))
 	taskrunqueue.Remove(taskcurrent)
 	contextload(&taskcurrent.Context)
 }
@@ -195,31 +195,31 @@ func (l *TaskList) debug() {
 //gc:nowritebarrier
 func (l *TaskList) Add(t *Task) {
 	if l.Tail != nil {
-		atomic.Storep1(unsafe.Pointer(&l.Tail.Next), unsafe.Pointer(t))
-		atomic.Storep1(unsafe.Pointer(&t.Prev), unsafe.Pointer(l.Tail))
+		atomic.StorepNoWB(unsafe.Pointer(&l.Tail.Next), unsafe.Pointer(t))
+		atomic.StorepNoWB(unsafe.Pointer(&t.Prev), unsafe.Pointer(l.Tail))
 	} else {
-		atomic.Storep1(unsafe.Pointer(&l.Head), unsafe.Pointer(t))
+		atomic.StorepNoWB(unsafe.Pointer(&l.Head), unsafe.Pointer(t))
 		t.Prev = nil
 	}
 
-	atomic.Storep1(unsafe.Pointer(&l.Tail), unsafe.Pointer(t))
+	atomic.StorepNoWB(unsafe.Pointer(&l.Tail), unsafe.Pointer(t))
 	t.Next = nil
 }
 
 //gc:nowritebarrier
 func (l *TaskList) Remove(t *Task) {
 	if t.Prev != nil {
-		atomic.Storep1(unsafe.Pointer(&t.Prev.Next), unsafe.Pointer(t.Next))
+		atomic.StorepNoWB(unsafe.Pointer(&t.Prev.Next), unsafe.Pointer(t.Next))
 		// t.Prev.Next = t.Next
 	} else {
-		atomic.Storep1(unsafe.Pointer(&l.Head), unsafe.Pointer(t.Next))
+		atomic.StorepNoWB(unsafe.Pointer(&l.Head), unsafe.Pointer(t.Next))
 		// l.Head = t.Next
 	}
 
 	if t.Next != nil {
-		atomic.Storep1(unsafe.Pointer(&t.Next.Prev), unsafe.Pointer(t.Prev))
+		atomic.StorepNoWB(unsafe.Pointer(&t.Next.Prev), unsafe.Pointer(t.Prev))
 	} else {
-		atomic.Storep1(unsafe.Pointer(&l.Tail), unsafe.Pointer(t.Prev))
+		atomic.StorepNoWB(unsafe.Pointer(&l.Tail), unsafe.Pointer(t.Prev))
 	}
 }
 
