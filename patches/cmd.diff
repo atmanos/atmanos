@@ -1,8 +1,21 @@
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 936f9e5..58dc59e 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -68,6 +68,8 @@ var contexts = []*build.Context{
+ 	{GOOS: "openbsd", GOARCH: "386"},
+ 	{GOOS: "openbsd", GOARCH: "amd64", CgoEnabled: true},
+ 	{GOOS: "openbsd", GOARCH: "amd64"},
++	{GOOS: "atman", GOARCH: "amd64", CgoEnabled: true},
++	{GOOS: "atman", GOARCH: "amd64"},
+ }
+ 
+ func contextName(c *build.Context) string {
 diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
-index 39a88cc..889fcdf 100644
+index 9eb9caf..40e4f2a 100644
 --- a/src/cmd/dist/build.go
 +++ b/src/cmd/dist/build.go
-@@ -62,6 +62,7 @@ var okgoarch = []string{
+@@ -65,6 +65,7 @@ var okgoarch = []string{
  
  // The known operating systems.
  var okgoos = []string{
@@ -10,23 +23,31 @@ index 39a88cc..889fcdf 100644
  	"darwin",
  	"dragonfly",
  	"linux",
+@@ -1120,6 +1121,7 @@ var cgoEnabled = map[string]bool{
+ 	"solaris/amd64":   true,
+ 	"windows/386":     true,
+ 	"windows/amd64":   true,
++	"atman/amd64":     true,
+ }
+ 
+ func needCC() bool {
 diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
-index 762a49e..b8de4d3 100644
+index b6861f4..220238b 100644
 --- a/src/cmd/internal/obj/link.go
 +++ b/src/cmd/internal/obj/link.go
-@@ -675,6 +675,7 @@ const (
+@@ -725,6 +725,7 @@ const (
  	Hplan9
  	Hsolaris
  	Hwindows
 +	Hatman
  )
  
- type Plist struct {
+ // AsmBuf is a simple buffer to assemble variable-length x86 instructions into.
 diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
-index dd5297e..994df14 100644
+index e974ca8..fbdbc88 100644
 --- a/src/cmd/internal/obj/sym.go
 +++ b/src/cmd/internal/obj/sym.go
-@@ -56,6 +56,7 @@ var headers = []struct {
+@@ -55,6 +55,7 @@ var headers = []struct {
  	{"solaris", Hsolaris},
  	{"windows", Hwindows},
  	{"windowsgui", Hwindows},
@@ -35,10 +56,10 @@ index dd5297e..994df14 100644
  
  func headtype(name string) int {
 diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
-index 4ed1d87..6c1c018 100644
+index 676da40..752de74 100644
 --- a/src/cmd/internal/obj/x86/asm6.go
 +++ b/src/cmd/internal/obj/x86/asm6.go
-@@ -2224,7 +2224,8 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+@@ -2216,7 +2216,8 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
  				obj.Hfreebsd,
  				obj.Hnetbsd,
  				obj.Hopenbsd,
@@ -49,10 +70,10 @@ index 4ed1d87..6c1c018 100644
  
  			case obj.Hdarwin:
 diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
-index 55ddfe1..5a92b1f 100644
+index 75638a0..8760bf5 100644
 --- a/src/cmd/internal/obj/x86/obj6.go
 +++ b/src/cmd/internal/obj/x86/obj6.go
-@@ -54,7 +54,8 @@ func canuse1insntls(ctxt *obj.Link) bool {
+@@ -54,7 +54,8 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
  		case obj.Hlinux,
  			obj.Hnacl,
  			obj.Hplan9,
@@ -62,20 +83,20 @@ index 55ddfe1..5a92b1f 100644
  			return false
  		}
  
-@@ -65,7 +66,7 @@ func canuse1insntls(ctxt *obj.Link) bool {
+@@ -65,7 +66,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
  	case obj.Hplan9,
  		obj.Hwindows:
  		return false
 -	case obj.Hlinux:
 +	case obj.Hlinux, obj.Hatman:
- 		return ctxt.Flag_shared == 0
+ 		return !ctxt.Flag_shared
  	}
  
 diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
-index fa785c2..fa6d72b 100644
+index eff9a22..6d1436d 100644
 --- a/src/cmd/link/internal/amd64/asm.go
 +++ b/src/cmd/link/internal/amd64/asm.go
-@@ -683,7 +683,8 @@ func asmb() {
+@@ -664,7 +664,8 @@ func asmb() {
  		obj.Hnetbsd,
  		obj.Hopenbsd,
  		obj.Hdragonfly,
@@ -85,17 +106,17 @@ index fa785c2..fa6d72b 100644
  		ld.Debug['8'] = 1 /* 64-bit addresses */
  
  	case obj.Hnacl,
-@@ -716,7 +717,8 @@ func asmb() {
+@@ -696,7 +697,8 @@ func asmb() {
  			obj.Hopenbsd,
  			obj.Hdragonfly,
  			obj.Hsolaris,
 -			obj.Hnacl:
 +			obj.Hnacl,
 +			obj.Hatman:
- 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
  			symo = ld.Rnd(symo, int64(ld.INITRND))
  
-@@ -804,7 +806,8 @@ func asmb() {
+@@ -780,7 +782,8 @@ func asmb() {
  		obj.Hopenbsd,
  		obj.Hdragonfly,
  		obj.Hsolaris,
@@ -106,10 +127,10 @@ index fa785c2..fa6d72b 100644
  
  	case obj.Hwindows:
 diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
-index 1aa4422..bcd3892 100644
+index f62f237..1087f94 100644
 --- a/src/cmd/link/internal/amd64/obj.go
 +++ b/src/cmd/link/internal/amd64/obj.go
-@@ -111,7 +111,8 @@ func archinit() {
+@@ -110,7 +110,8 @@ func archinit() {
  		obj.Hnetbsd,
  		obj.Hopenbsd,
  		obj.Hsolaris,
@@ -119,7 +140,7 @@ index 1aa4422..bcd3892 100644
  		break
  	}
  
-@@ -164,7 +165,8 @@ func archinit() {
+@@ -150,7 +151,8 @@ func archinit() {
  		obj.Hnetbsd,    /* netbsd */
  		obj.Hopenbsd,   /* openbsd */
  		obj.Hdragonfly, /* dragonfly */
@@ -130,10 +151,10 @@ index 1aa4422..bcd3892 100644
  
  		ld.HEADR = ld.ELFRESERVE
 diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
-index 0e5a2d0..efa5955 100644
+index 7832e91..db4f013 100644
 --- a/src/cmd/link/internal/arm64/asm.go
 +++ b/src/cmd/link/internal/arm64/asm.go
-@@ -540,7 +540,8 @@ func asmb() {
+@@ -518,7 +518,8 @@ func asmb() {
  		obj.Hfreebsd,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
@@ -144,10 +165,10 @@ index 0e5a2d0..efa5955 100644
  
  	case obj.Hdarwin:
 diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
-index ae121c2..cee9244 100644
+index 86f9ff7..c7a8362 100644
 --- a/src/cmd/link/internal/arm64/obj.go
 +++ b/src/cmd/link/internal/arm64/obj.go
-@@ -100,7 +100,7 @@ func archinit() {
+@@ -99,7 +99,7 @@ func archinit() {
  		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
  			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
  		}
@@ -156,7 +177,7 @@ index ae121c2..cee9244 100644
  		break
  	}
  
-@@ -125,7 +125,8 @@ func archinit() {
+@@ -124,7 +124,8 @@ func archinit() {
  			ld.INITRND = 4096
  		}
  
@@ -167,10 +188,10 @@ index ae121c2..cee9244 100644
  		ld.HEADR = ld.ELFRESERVE
  		if ld.INITTEXT == -1 {
 diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
-index 6d34978..611d982 100644
+index 39d3609..93a75ae 100644
 --- a/src/cmd/link/internal/ld/elf.go
 +++ b/src/cmd/link/internal/ld/elf.go
-@@ -1168,6 +1168,52 @@ func elfwritenetbsdsig() int {
+@@ -1283,6 +1283,52 @@ func elfwritenetbsdsig() int {
  	return int(sh.size)
  }
  
@@ -223,7 +244,7 @@ index 6d34978..611d982 100644
  // OpenBSD Signature
  const (
  	ELF_NOTE_OPENBSD_NAMESZ  = 8
-@@ -1751,6 +1797,13 @@ func doelf() {
+@@ -1853,6 +1899,13 @@ func doelf() {
  	if buildid != "" {
  		Addstring(shstrtab, ".note.go.buildid")
  	}
@@ -237,7 +258,7 @@ index 6d34978..611d982 100644
  	Addstring(shstrtab, ".elfdata")
  	Addstring(shstrtab, ".rodata")
  	// See the comment about data.rel.ro.FOO section names in data.go.
-@@ -2117,7 +2170,7 @@ func Asmbelf(symo int64) {
+@@ -2189,7 +2242,7 @@ func Asmbelf(symo int64) {
  	 * segment boundaries downwards to include it.
  	 * Except on NaCl where it must not be loaded.
  	 */
@@ -246,7 +267,7 @@ index 6d34978..611d982 100644
  		o := int64(Segtext.Vaddr - pph.vaddr)
  		Segtext.Vaddr -= uint64(o)
  		Segtext.Length += uint64(o)
-@@ -2205,6 +2258,35 @@ func Asmbelf(symo int64) {
+@@ -2277,6 +2330,35 @@ func Asmbelf(symo int64) {
  		phsh(pnote, sh)
  	}
  
@@ -282,7 +303,7 @@ index 6d34978..611d982 100644
  	// Additions to the reserved area must be above this line.
  
  	elfphload(&Segtext)
-@@ -2518,6 +2600,9 @@ elfobj:
+@@ -2598,6 +2680,9 @@ elfobj:
  			a += int64(elfwritegobuildid())
  		}
  	}
@@ -293,10 +314,10 @@ index 6d34978..611d982 100644
  	if a > elfreserve {
  		Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
 diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
-index 731f3ed..5066067 100644
+index a44c8de..7953fa5 100644
 --- a/src/cmd/link/internal/ld/sym.go
 +++ b/src/cmd/link/internal/ld/sym.go
-@@ -49,6 +49,7 @@ var headers = []struct {
+@@ -47,6 +47,7 @@ var headers = []struct {
  	{"freebsd", obj.Hfreebsd},
  	{"linux", obj.Hlinux},
  	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
@@ -304,21 +325,21 @@ index 731f3ed..5066067 100644
  	{"nacl", obj.Hnacl},
  	{"netbsd", obj.Hnetbsd},
  	{"openbsd", obj.Hopenbsd},
-@@ -118,6 +119,9 @@ func linknew(arch *LinkArch) *Link {
- 			ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+@@ -114,6 +115,9 @@ func linknew(arch *sys.Arch) *Link {
+ 			ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
  		}
  
 +	case obj.Hatman:
 +		ctxt.Tlsoffset = 0
 +
  	case obj.Hnacl:
- 		switch ctxt.Arch.Thechar {
+ 		switch ctxt.Arch.Family {
  		default:
 diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
-index 830a7e6..514f8c9 100644
+index cc8f96f..c881387 100644
 --- a/src/cmd/link/internal/x86/asm.go
 +++ b/src/cmd/link/internal/x86/asm.go
-@@ -761,7 +761,8 @@ func asmb() {
+@@ -738,7 +738,8 @@ func asmb() {
  		obj.Hfreebsd,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
@@ -329,10 +350,10 @@ index 830a7e6..514f8c9 100644
  
  	case obj.Hwindows:
 diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
-index c153555..44645b9 100644
+index a4d8f50..866bb7f 100644
 --- a/src/cmd/link/internal/x86/obj.go
 +++ b/src/cmd/link/internal/x86/obj.go
-@@ -107,7 +107,8 @@ func archinit() {
+@@ -106,7 +106,8 @@ func archinit() {
  		obj.Hlinux,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
@@ -342,7 +363,7 @@ index c153555..44645b9 100644
  		break
  	}
  
-@@ -145,7 +146,8 @@ func archinit() {
+@@ -144,7 +145,8 @@ func archinit() {
  	case obj.Hlinux, /* elf32 executable */
  		obj.Hfreebsd,
  		obj.Hnetbsd,
