@@ -1,7 +1,9 @@
 package net
 
 import (
+	"context"
 	"errors"
+	"io"
 	"os"
 	"time"
 )
@@ -11,6 +13,8 @@ var errNotImplemented = errors.New("not implemented")
 func sysInit() {}
 
 type netFD struct {
+	fdmu fdMutex
+
 	net          string
 	laddr, raddr Addr
 }
@@ -27,6 +31,8 @@ func (*netFD) Write(b []byte) (n int, err error) {
 	return 0, errNotImplemented
 }
 
+func (*netFD) destroy() {}
+
 func (*netFD) dup() (*os.File, error) {
 	return nil, errNotImplemented
 }
@@ -40,6 +46,14 @@ func (fd *netFD) setReadDeadline(t time.Time) error {
 }
 
 func (fd *netFD) setWriteDeadline(t time.Time) error {
+	return errNotImplemented
+}
+
+func (*netFD) closeRead() error {
+	return errNotImplemented
+}
+
+func (*netFD) closeWrite() error {
 	return errNotImplemented
 }
 
@@ -59,45 +73,53 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	return errNotImplemented
 }
 
+func setLinger(fd *netFD, sec int) error {
+	return errNotImplemented
+}
+
+func setNoDelay(fd *netFD, noDelay bool) error {
+	return errNotImplemented
+}
+
 // lookupProtocol looks up IP protocol name and returns
 // the corresponding protocol number.
-func lookupProtocol(name string) (proto int, err error) {
+func lookupProtocol(_ context.Context, name string) (proto int, err error) {
 	return 0, errNotImplemented
 }
 
-func lookupIP(host string) (addrs []IPAddr, err error) {
+func lookupIP(_ context.Context, host string) (addrs []IPAddr, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupHost(host string) (addrs []string, err error) {
+func lookupHost(_ context.Context, host string) (addrs []string, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupPort(network, service string) (port int, err error) {
+func lookupPort(_ context.Context, network, service string) (port int, err error) {
 	return 0, errNotImplemented
 }
 
-func lookupCNAME(name string) (cname string, err error) {
+func lookupCNAME(_ context.Context, name string) (cname string, err error) {
 	return "", errNotImplemented
 }
 
-func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+func lookupSRV(_ context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
 	return "", nil, errNotImplemented
 }
 
-func lookupMX(name string) (mx []*MX, err error) {
+func lookupMX(_ context.Context, name string) (mx []*MX, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupNS(name string) (ns []*NS, err error) {
+func lookupNS(_ context.Context, name string) (ns []*NS, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupTXT(name string) (txt []string, err error) {
+func lookupTXT(_ context.Context, name string) (txt []string, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupAddr(addr string) (name []string, err error) {
+func lookupAddr(_ context.Context, addr string) (name []string, err error) {
 	return nil, errNotImplemented
 }
 
@@ -105,77 +127,43 @@ func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline ti
 	return nil, errNotImplemented
 }
 
-type errConn struct {
-	conn
-}
-
-func (*errConn) ReadFrom(b []byte) (int, Addr, error) {
-	return 0, nil, errNotImplemented
-}
-
-func (*errConn) WriteTo(b []byte, addr Addr) (int, error) {
-	return 0, errNotImplemented
-}
-
-type errListener struct{}
-
-func (*errListener) Accept() (Conn, error) {
+func dialTCP(_ context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	return nil, errNotImplemented
 }
 
-func (*errListener) Addr() Addr { return nil }
-
-type TCPConn struct {
-	errConn
-	errListener
-}
-
-func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
+func listenTCP(_ context.Context, net string, laddr *TCPAddr) (*TCPListener, error) {
 	return nil, errNotImplemented
 }
 
-func ListenTCP(net string, laddr *TCPAddr) (*TCPConn, error) {
+func dialUDP(_ context.Context, net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	return nil, errNotImplemented
 }
 
-type UDPConn struct {
-	errConn
-}
-
-func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
+func listenUDP(_ context.Context, netProto string, laddr *UDPAddr) (*UDPConn, error) {
 	return nil, errNotImplemented
 }
 
-func ListenUDP(netProto string, laddr *UDPAddr) (*UDPConn, error) {
+func listenMulticastUDP(_ context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
 	return nil, errNotImplemented
 }
 
-type IPConn struct {
-	errConn
-}
-
-func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
+func dialIP(_ context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 	return nil, errNotImplemented
 }
 
-func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+func listenIP(_ context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
 	return nil, errNotImplemented
 }
 
-type UnixConn struct {
-	errConn
-	errListener
-}
-
-func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
+func dialUnix(_ context.Context, net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	return nil, errNotImplemented
 }
 
-func ListenUnix(net string, laddr *UnixAddr) (*UnixConn, error) {
+func listenUnix(_ context.Context, net string, laddr *UnixAddr) (*UnixListener, error) {
 	return nil, errNotImplemented
 }
 
-func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
+func listenUnixgram(_ context.Context, net string, laddr *UnixAddr) (*UnixConn, error) {
 	return nil, errNotImplemented
 }
 
@@ -213,4 +201,63 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 
 func maxListenerBacklog() int {
 	return -1
+}
+
+func (*IPConn) writeTo(b []byte, addr *IPAddr) (int, error) {
+	return 0, errNotImplemented
+}
+
+func (*IPConn) readFrom(b []byte) (int, *IPAddr, error) {
+	return 0, nil, errNotImplemented
+}
+
+func (*IPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
+	return 0, 0, 0, nil, errNotImplemented
+}
+
+func (*IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error) {
+	return 0, 0, errNotImplemented
+}
+
+func (*TCPConn) readFrom(r io.Reader) (int64, error) { return 0, errNotImplemented }
+
+func (*TCPListener) ok() bool                  { return false }
+func (*TCPListener) accept() (*TCPConn, error) { return nil, errNotImplemented }
+func (*TCPListener) close() error              { return errNotImplemented }
+func (*TCPListener) file() (*os.File, error)   { return nil, errNotImplemented }
+
+func (*UDPConn) readFrom(b []byte) (n int, addr *UDPAddr, err error) {
+	return 0, nil, errNotImplemented
+}
+
+func (*UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
+	return 0, 0, 0, nil, errNotImplemented
+}
+
+func (*UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
+	return 0, errNotImplemented
+}
+
+func (*UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
+	return 0, 0, errNotImplemented
+}
+
+func (*UnixListener) accept() (*UnixConn, error) { return nil, errNotImplemented }
+func (*UnixListener) close() error               { return errNotImplemented }
+func (*UnixListener) file() (*os.File, error)    { return nil, errNotImplemented }
+
+func (*UnixConn) readFrom(b []byte) (n int, addr *UnixAddr, err error) {
+	return 0, nil, errNotImplemented
+}
+
+func (*UnixConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
+	return 0, 0, 0, nil, errNotImplemented
+}
+
+func (*UnixConn) writeTo(b []byte, addr *UnixAddr) (int, error) {
+	return 0, errNotImplemented
+}
+
+func (*UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
+	return 0, 0, errNotImplemented
 }
