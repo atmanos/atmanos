@@ -5,6 +5,7 @@ import (
 	"atman/xen"
 	"atman/xenstore"
 	"fmt"
+	"time"
 )
 
 var grantTable = xen.MapGrantTable()
@@ -125,13 +126,24 @@ func (dev *Device) finalizeConnection() error {
 		return fmt.Errorf("atman/net: failed to read backend path: %s", err)
 	}
 
-	state, err := xenstore.Read(string(backend) + "/state").ReadUint32()
-	if err != nil {
-		return fmt.Errorf("atman/net: failed to read backend state: %s", err)
-	}
+	var state uint32 = xenstore.StateUnknown
 
-	if state != xenstore.StateConnected {
-		return fmt.Errorf("atman/net: backend not connected (state=%v)", state)
+	for {
+		state, err = xenstore.Read(string(backend) + "/state").ReadUint32()
+		if err != nil {
+			return fmt.Errorf("atman/net: failed to read backend state: %s", err)
+		}
+
+		if state < xenstore.StateConnected {
+			time.Sleep(10 * time.Millisecond) // TODO: subscribe to events
+			continue
+		}
+
+		if state != xenstore.StateConnected {
+			return fmt.Errorf("atman/net: backend not connected (state=%v)", state)
+		}
+
+		break
 	}
 
 	ip, err := xenstore.Read(string(backend) + "/ip").ReadBytes()
