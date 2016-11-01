@@ -83,11 +83,7 @@ func initRxPages(dev *Device) {
 			break
 		}
 
-		buf.Gref = mustGrantAccess(dev.Backend, buf.Page.Frame, false)
-
-		req := (*NetifRxRequest)(dev.Rx.NextRequest())
-		req.ID = uint16(buf.ID)
-		req.Gref = buf.Gref
+		dev.SendRxBuffer(buf)
 	}
 
 	if notify := dev.Rx.PushRequests(); notify {
@@ -162,6 +158,14 @@ func (dev *Device) finalizeConnection() error {
 
 func (dev *Device) xenstorePath(path string) string {
 	return "device/vif/0/" + path
+}
+
+func (dev *Device) SendRxBuffer(buf *Buffer) {
+	buf.Gref = mustGrantAccess(dev.Backend, buf.Page.Frame, false)
+
+	req := (*NetifRxRequest)(dev.Rx.NextRequest())
+	req.Gref = buf.Gref
+	req.ID = uint16(buf.ID)
 }
 
 func (dev *Device) SendTxBuffer(buf *Buffer, size int) {
