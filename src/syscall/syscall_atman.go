@@ -32,6 +32,14 @@ const (
 	O_SYNC
 )
 
+const (
+	EPOLLIN = 1 << iota
+	EPOLLPRI
+	EPOLLOUT
+	EPOLLERR
+	EPOLLHUP
+)
+
 var (
 	Stdin  = 0
 	Stdout = 1
