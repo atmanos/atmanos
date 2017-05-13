@@ -199,11 +199,11 @@ func (l *TaskList) Add(t *Task) {
 		atomic.StorepNoWB(unsafe.Pointer(&t.Prev), unsafe.Pointer(l.Tail))
 	} else {
 		atomic.StorepNoWB(unsafe.Pointer(&l.Head), unsafe.Pointer(t))
-		t.Prev = nil
+		atomic.StorepNoWB(unsafe.Pointer(&t.Prev), nil)
 	}
 
 	atomic.StorepNoWB(unsafe.Pointer(&l.Tail), unsafe.Pointer(t))
-	t.Next = nil
+	atomic.StorepNoWB(unsafe.Pointer(&t.Next), nil)
 }
 
 //gc:nowritebarrier

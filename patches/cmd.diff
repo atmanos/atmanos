@@ -12,10 +12,10 @@ index 936f9e5..58dc59e 100644
  
  func contextName(c *build.Context) string {
 diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
-index 9eb9caf..40e4f2a 100644
+index 4d0b1a0..42211ce 100644
 --- a/src/cmd/dist/build.go
 +++ b/src/cmd/dist/build.go
-@@ -65,6 +65,7 @@ var okgoarch = []string{
+@@ -68,6 +68,7 @@ var okgoarch = []string{
  
  // The known operating systems.
  var okgoos = []string{
@@ -23,7 +23,7 @@ index 9eb9caf..40e4f2a 100644
  	"darwin",
  	"dragonfly",
  	"linux",
-@@ -1120,6 +1121,7 @@ var cgoEnabled = map[string]bool{
+@@ -1131,6 +1132,7 @@ var cgoEnabled = map[string]bool{
  	"solaris/amd64":   true,
  	"windows/386":     true,
  	"windows/amd64":   true,
@@ -32,34 +32,40 @@ index 9eb9caf..40e4f2a 100644
  
  func needCC() bool {
 diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
-index b6861f4..220238b 100644
+index 2ab2aec..5f278c6 100644
 --- a/src/cmd/internal/obj/link.go
 +++ b/src/cmd/internal/obj/link.go
-@@ -725,6 +725,7 @@ const (
- 	Hplan9
+@@ -824,6 +824,7 @@ const (
  	Hsolaris
  	Hwindows
+ 	Hwindowsgui
 +	Hatman
  )
  
- // AsmBuf is a simple buffer to assemble variable-length x86 instructions into.
-diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
-index e974ca8..fbdbc88 100644
---- a/src/cmd/internal/obj/sym.go
-+++ b/src/cmd/internal/obj/sym.go
-@@ -55,6 +55,7 @@ var headers = []struct {
- 	{"solaris", Hsolaris},
- 	{"windows", Hwindows},
- 	{"windowsgui", Hwindows},
-+	{"atman", Hatman},
+ func (h *HeadType) Set(s string) error {
+@@ -850,6 +851,8 @@ func (h *HeadType) Set(s string) error {
+ 		*h = Hwindows
+ 	case "windowsgui":
+ 		*h = Hwindowsgui
++	case "atman":
++		*h = Hatman
+ 	default:
+ 		return fmt.Errorf("invalid headtype: %q", s)
+ 	}
+@@ -880,6 +883,8 @@ func (h *HeadType) String() string {
+ 		return "windows"
+ 	case Hwindowsgui:
+ 		return "windowsgui"
++	case Hatman:
++		return "atman"
+ 	}
+ 	return fmt.Sprintf("HeadType(%d)", *h)
  }
- 
- func headtype(name string) int {
 diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
-index 676da40..752de74 100644
+index bf67822..b79e110 100644
 --- a/src/cmd/internal/obj/x86/asm6.go
 +++ b/src/cmd/internal/obj/x86/asm6.go
-@@ -2216,7 +2216,8 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+@@ -2176,7 +2176,8 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
  				obj.Hfreebsd,
  				obj.Hnetbsd,
  				obj.Hopenbsd,
@@ -70,22 +76,22 @@ index 676da40..752de74 100644
  
  			case obj.Hdarwin:
 diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
-index 75638a0..8760bf5 100644
+index eb6f867..801cf11 100644
 --- a/src/cmd/internal/obj/x86/obj6.go
 +++ b/src/cmd/internal/obj/x86/obj6.go
-@@ -54,7 +54,8 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
- 		case obj.Hlinux,
+@@ -56,7 +56,8 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
  			obj.Hnacl,
  			obj.Hplan9,
--			obj.Hwindows:
-+			obj.Hwindows,
+ 			obj.Hwindows,
+-			obj.Hwindowsgui:
++			obj.Hwindowsgui,
 +			obj.Hatman:
  			return false
  		}
  
-@@ -65,7 +66,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
- 	case obj.Hplan9,
- 		obj.Hwindows:
+@@ -66,7 +67,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 	switch ctxt.Headtype {
+ 	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
  		return false
 -	case obj.Hlinux:
 +	case obj.Hlinux, obj.Hatman:
@@ -93,20 +99,20 @@ index 75638a0..8760bf5 100644
  	}
  
 diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
-index eff9a22..6d1436d 100644
+index 60bd45c..1a527a0 100644
 --- a/src/cmd/link/internal/amd64/asm.go
 +++ b/src/cmd/link/internal/amd64/asm.go
-@@ -664,7 +664,8 @@ func asmb() {
+@@ -711,7 +711,8 @@ func asmb(ctxt *ld.Link) {
  		obj.Hnetbsd,
  		obj.Hopenbsd,
  		obj.Hdragonfly,
 -		obj.Hsolaris:
 +		obj.Hsolaris,
 +		obj.Hatman:
- 		ld.Debug['8'] = 1 /* 64-bit addresses */
+ 		ld.Flag8 = true /* 64-bit addresses */
  
  	case obj.Hnacl,
-@@ -696,7 +697,8 @@ func asmb() {
+@@ -743,7 +744,8 @@ func asmb(ctxt *ld.Link) {
  			obj.Hopenbsd,
  			obj.Hdragonfly,
  			obj.Hsolaris,
@@ -114,84 +120,64 @@ index eff9a22..6d1436d 100644
 +			obj.Hnacl,
 +			obj.Hatman:
  			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
- 			symo = ld.Rnd(symo, int64(ld.INITRND))
+ 			symo = ld.Rnd(symo, int64(*ld.FlagRound))
  
-@@ -780,7 +782,8 @@ func asmb() {
+@@ -827,7 +829,8 @@ func asmb(ctxt *ld.Link) {
  		obj.Hopenbsd,
  		obj.Hdragonfly,
  		obj.Hsolaris,
 -		obj.Hnacl:
 +		obj.Hnacl,
 +		obj.Hatman:
- 		ld.Asmbelf(symo)
+ 		ld.Asmbelf(ctxt, symo)
  
- 	case obj.Hwindows:
+ 	case obj.Hwindows,
 diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
-index f62f237..1087f94 100644
+index 9646b60..5ee0d5b 100644
 --- a/src/cmd/link/internal/amd64/obj.go
 +++ b/src/cmd/link/internal/amd64/obj.go
-@@ -110,7 +110,8 @@ func archinit() {
- 		obj.Hnetbsd,
- 		obj.Hopenbsd,
- 		obj.Hsolaris,
--		obj.Hwindows:
-+		obj.Hwindows,
-+		obj.Hatman:
- 		break
- 	}
- 
-@@ -150,7 +151,8 @@ func archinit() {
+@@ -112,7 +112,8 @@ func archinit(ctxt *ld.Link) {
  		obj.Hnetbsd,    /* netbsd */
  		obj.Hopenbsd,   /* openbsd */
  		obj.Hdragonfly, /* dragonfly */
 -		obj.Hsolaris:   /* solaris */
 +		obj.Hsolaris,   /* solaris */
-+		obj.Hatman:
- 		ld.Elfinit()
++		obj.Hatman:     /* atman */
+ 		ld.Elfinit(ctxt)
  
  		ld.HEADR = ld.ELFRESERVE
 diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
-index 7832e91..db4f013 100644
+index 118a575..fa8cb5a 100644
 --- a/src/cmd/link/internal/arm64/asm.go
 +++ b/src/cmd/link/internal/arm64/asm.go
-@@ -518,7 +518,8 @@ func asmb() {
+@@ -519,7 +519,8 @@ func asmb(ctxt *ld.Link) {
  		obj.Hfreebsd,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
 -		obj.Hnacl:
 +		obj.Hnacl,
 +		obj.Hatman:
- 		ld.Asmbelf(int64(symo))
+ 		ld.Asmbelf(ctxt, int64(symo))
  
  	case obj.Hdarwin:
 diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
-index 86f9ff7..c7a8362 100644
+index 7d49163..0e87941 100644
 --- a/src/cmd/link/internal/arm64/obj.go
 +++ b/src/cmd/link/internal/arm64/obj.go
-@@ -99,7 +99,7 @@ func archinit() {
- 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
- 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
- 		}
--	case obj.Hlinux, obj.Hdarwin:
-+	case obj.Hlinux, obj.Hdarwin, obj.Hatman:
- 		break
- 	}
- 
-@@ -124,7 +124,8 @@ func archinit() {
- 			ld.INITRND = 4096
+@@ -89,7 +89,7 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagRound = 4096
  		}
  
 -	case obj.Hlinux: /* arm64 elf */
-+	case obj.Hlinux,
-+		obj.Hatman: /* arm64 elf */
- 		ld.Elfinit()
++	case obj.Hlinux, obj.Hatman: /* arm64 elf */
+ 		ld.Elfinit(ctxt)
  		ld.HEADR = ld.ELFRESERVE
- 		if ld.INITTEXT == -1 {
+ 		if *ld.FlagTextAddr == -1 {
 diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
-index 39d3609..93a75ae 100644
+index 1d8a5dd..cbcd4b9 100644
 --- a/src/cmd/link/internal/ld/elf.go
 +++ b/src/cmd/link/internal/ld/elf.go
-@@ -1283,6 +1283,52 @@ func elfwritenetbsdsig() int {
+@@ -1289,6 +1289,52 @@ func elfwritenetbsdsig() int {
  	return int(sh.size)
  }
  
@@ -201,7 +187,7 @@ index 39d3609..93a75ae 100644
 +	return elfnote(sh, startva, resoff, n, true)
 +}
 +
-+func elfwriteatmansig() int {
++func elfwriteatmansig(ctxt *Link) int {
 +	var n int
 +
 +	sh := elfwritenotehdr(".note.Xen.loader", 4, 8, 8)
@@ -231,7 +217,7 @@ index 39d3609..93a75ae 100644
 +	Cwrite([]byte("Xen\x00"))
 +
 +	var (
-+		hypercallPage      = Linklookup(Ctxt, "runtime._atman_hypercall_page", 0)
++		hypercallPage      = ctxt.Syms.Lookup("runtime._atman_hypercall_page", 0)
 +		pageSize           = uint64(0x1000)
 +		pageStart          = uint64(Symaddr(hypercallPage))
 +		hypercallPageStart = (pageStart + pageSize - 1) &^ (pageSize - 1)
@@ -244,34 +230,32 @@ index 39d3609..93a75ae 100644
  // OpenBSD Signature
  const (
  	ELF_NOTE_OPENBSD_NAMESZ  = 8
-@@ -1853,6 +1899,13 @@ func doelf() {
- 	if buildid != "" {
+@@ -1915,6 +1961,11 @@ func (ctxt *Link) doelf() {
+ 	if *flagBuildid != "" {
  		Addstring(shstrtab, ".note.go.buildid")
  	}
-+
-+	if HEADTYPE == obj.Hatman {
++	if Headtype == obj.Hatman {
 +		Addstring(shstrtab, ".note.Xen.loader")
 +		Addstring(shstrtab, ".note.Xen.version")
 +		Addstring(shstrtab, ".note.Xen.hypercall_page")
 +	}
-+
  	Addstring(shstrtab, ".elfdata")
  	Addstring(shstrtab, ".rodata")
  	// See the comment about data.rel.ro.FOO section names in data.go.
-@@ -2189,7 +2242,7 @@ func Asmbelf(symo int64) {
+@@ -2279,7 +2330,7 @@ func Asmbelf(ctxt *Link, symo int64) {
  	 * segment boundaries downwards to include it.
  	 * Except on NaCl where it must not be loaded.
  	 */
--	if HEADTYPE != obj.Hnacl {
-+	if HEADTYPE != obj.Hnacl && false {
+-	if Headtype != obj.Hnacl {
++	if Headtype != obj.Hnacl && false {
  		o := int64(Segtext.Vaddr - pph.vaddr)
  		Segtext.Vaddr -= uint64(o)
  		Segtext.Length += uint64(o)
-@@ -2277,6 +2330,35 @@ func Asmbelf(symo int64) {
+@@ -2367,6 +2418,33 @@ func Asmbelf(ctxt *Link, symo int64) {
  		phsh(pnote, sh)
  	}
  
-+	if HEADTYPE == obj.Hatman {
++	if Headtype == obj.Hatman {
 +		{
 +			sh := elfshname(".note.Xen.loader")
 +			resoff -= int64(elfatmansig(sh, uint64(startva), uint64(resoff)))
@@ -280,7 +264,6 @@ index 39d3609..93a75ae 100644
 +			pnote.flags = PF_R
 +			phsh(pnote, sh)
 +		}
-+
 +		{
 +			sh := elfshname(".note.Xen.version")
 +			resoff -= int64(elfatmansig(sh, uint64(startva), uint64(resoff)))
@@ -289,7 +272,6 @@ index 39d3609..93a75ae 100644
 +			pnote.flags = PF_R
 +			phsh(pnote, sh)
 +		}
-+
 +		{
 +			sh := elfshname(".note.Xen.hypercall_page")
 +			resoff -= int64(elfatmansig(sh, uint64(startva), uint64(resoff)))
@@ -303,29 +285,21 @@ index 39d3609..93a75ae 100644
  	// Additions to the reserved area must be above this line.
  
  	elfphload(&Segtext)
-@@ -2598,6 +2680,9 @@ elfobj:
+@@ -2704,6 +2782,9 @@ elfobj:
  			a += int64(elfwritegobuildid())
  		}
  	}
-+	if HEADTYPE == obj.Hatman {
-+		a += int64(elfwriteatmansig())
++	if Headtype == obj.Hatman {
++		a += int64(elfwriteatmansig(ctxt))
 +	}
  
  	if a > elfreserve {
- 		Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
+ 		Errorf(nil, "ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
 diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
-index a44c8de..7953fa5 100644
+index 4908e34..62a4283 100644
 --- a/src/cmd/link/internal/ld/sym.go
 +++ b/src/cmd/link/internal/ld/sym.go
-@@ -47,6 +47,7 @@ var headers = []struct {
- 	{"freebsd", obj.Hfreebsd},
- 	{"linux", obj.Hlinux},
- 	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
-+	{"atman", obj.Hatman},
- 	{"nacl", obj.Hnacl},
- 	{"netbsd", obj.Hnetbsd},
- 	{"openbsd", obj.Hopenbsd},
-@@ -114,6 +115,9 @@ func linknew(arch *sys.Arch) *Link {
+@@ -93,6 +93,9 @@ func (ctxt *Link) computeTLSOffset() {
  			ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
  		}
  
@@ -336,40 +310,30 @@ index a44c8de..7953fa5 100644
  		switch ctxt.Arch.Family {
  		default:
 diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
-index cc8f96f..c881387 100644
+index af702c2..7907588 100644
 --- a/src/cmd/link/internal/x86/asm.go
 +++ b/src/cmd/link/internal/x86/asm.go
-@@ -738,7 +738,8 @@ func asmb() {
+@@ -768,7 +768,8 @@ func asmb(ctxt *ld.Link) {
  		obj.Hfreebsd,
  		obj.Hnetbsd,
  		obj.Hopenbsd,
 -		obj.Hnacl:
 +		obj.Hnacl,
 +		obj.Hatman:
- 		ld.Asmbelf(int64(symo))
+ 		ld.Asmbelf(ctxt, int64(symo))
  
- 	case obj.Hwindows:
+ 	case obj.Hwindows, obj.Hwindowsgui:
 diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
-index a4d8f50..866bb7f 100644
+index ea213be..7c2e781 100644
 --- a/src/cmd/link/internal/x86/obj.go
 +++ b/src/cmd/link/internal/x86/obj.go
-@@ -106,7 +106,8 @@ func archinit() {
- 		obj.Hlinux,
- 		obj.Hnetbsd,
- 		obj.Hopenbsd,
--		obj.Hwindows:
-+		obj.Hwindows,
-+		obj.Hatman:
- 		break
- 	}
- 
-@@ -144,7 +145,8 @@ func archinit() {
+@@ -105,7 +105,8 @@ func archinit(ctxt *ld.Link) {
  	case obj.Hlinux, /* elf32 executable */
  		obj.Hfreebsd,
  		obj.Hnetbsd,
 -		obj.Hopenbsd:
 +		obj.Hopenbsd,
 +		obj.Hatman:
- 		ld.Elfinit()
+ 		ld.Elfinit(ctxt)
  
  		ld.HEADR = ld.ELFRESERVE

@@ -1,5 +1,5 @@
 diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
-index d241d78..df1951a 100644
+index d77ff24..13e9fa3 100644
 --- a/src/path/filepath/path_unix.go
 +++ b/src/path/filepath/path_unix.go
 @@ -2,7 +2,7 @@

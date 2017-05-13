@@ -87,39 +87,39 @@ func lookupProtocol(_ context.Context, name string) (proto int, err error) {
 	return 0, errNotImplemented
 }
 
-func lookupIP(_ context.Context, host string) (addrs []IPAddr, err error) {
+func (*Resolver) lookupIP(_ context.Context, host string) (addrs []IPAddr, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupHost(_ context.Context, host string) (addrs []string, err error) {
+func (*Resolver) lookupHost(_ context.Context, host string) (addrs []string, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupPort(_ context.Context, network, service string) (port int, err error) {
+func (*Resolver) lookupPort(_ context.Context, network, service string) (port int, err error) {
 	return 0, errNotImplemented
 }
 
-func lookupCNAME(_ context.Context, name string) (cname string, err error) {
+func (*Resolver) lookupCNAME(_ context.Context, name string) (cname string, err error) {
 	return "", errNotImplemented
 }
 
-func lookupSRV(_ context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+func (*Resolver) lookupSRV(_ context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
 	return "", nil, errNotImplemented
 }
 
-func lookupMX(_ context.Context, name string) (mx []*MX, err error) {
+func (*Resolver) lookupMX(_ context.Context, name string) (mx []*MX, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupNS(_ context.Context, name string) (ns []*NS, err error) {
+func (*Resolver) lookupNS(_ context.Context, name string) (ns []*NS, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupTXT(_ context.Context, name string) (txt []string, err error) {
+func (*Resolver) lookupTXT(_ context.Context, name string) (txt []string, err error) {
 	return nil, errNotImplemented
 }
 
-func lookupAddr(_ context.Context, addr string) (name []string, err error) {
+func (*Resolver) lookupAddr(_ context.Context, addr string) (name []string, err error) {
 	return nil, errNotImplemented
 }
 
