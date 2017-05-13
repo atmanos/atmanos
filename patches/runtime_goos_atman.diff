@@ -1,5 +1,5 @@
 diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
-index d39b010..0b930ba 100644
+index 0fa0481..42834cf 100644
 --- a/src/runtime/lock_sema.go
 +++ b/src/runtime/lock_sema.go
 @@ -2,7 +2,7 @@

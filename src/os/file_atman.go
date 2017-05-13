@@ -4,7 +4,11 @@ import "syscall"
 
 const DevNull = "/dev/null"
 
-type File struct {
+func fixLongPath(path string) string {
+	return path
+}
+
+type file struct {
 	fd      int
 	name    string
 	dirinfo *dirInfo
@@ -13,10 +17,10 @@ type File struct {
 type dirInfo struct{}
 
 func NewFile(fd uintptr, name string) *File {
-	return &File{
+	return &File{&file{
 		fd:   int(fd),
 		name: name,
-	}
+	}}
 }
 
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
@@ -84,10 +88,6 @@ func Remove(path string) error {
 
 func rename(oldname, newname string) error {
 	return ErrNotExist
-}
-
-func sameFile(fs1, fs2 *fileStat) bool {
-	return false
 }
 
 func Readlink(name string) (string, error) {

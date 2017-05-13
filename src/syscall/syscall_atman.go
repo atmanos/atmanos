@@ -76,8 +76,6 @@ func Environ() []string {
 
 func Clearenv() {}
 
-func Getpagesize() int { return 0x1000 }
-
 func Getppid() int { return 2 }
 
 func Getpid() int { return 3 }
@@ -129,4 +127,7 @@ func Read(fd int, b []byte) (n int, err error) {
 // returns the number of bytes written.
 func WriteConsole(b []byte) int
 
-type Stat_t struct{}
+type Stat_t struct {
+	Dev uint64
+	Ino uint64
+}

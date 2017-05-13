@@ -7,6 +7,7 @@ import (
 
 func osinit() {
 	ncpu = 1
+	physPageSize = minPhysPageSize
 
 	atmaninit()
 }
@@ -193,7 +194,7 @@ func (s *sema) add(w *semawaiter) {
 	}
 
 	atomic.StorepNoWB(unsafe.Pointer(&s.tail), unsafe.Pointer(w))
-	w.next = nil
+	atomic.StorepNoWB(unsafe.Pointer(&w.next), nil)
 }
 
 type semawaiter struct {

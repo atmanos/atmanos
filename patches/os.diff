@@ -1,0 +1,13 @@
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index 69a70e1..05e042d 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux netbsd openbsd dragonfly nacl
++// +build linux netbsd openbsd dragonfly nacl atman
+ 
+ package os
+ 
