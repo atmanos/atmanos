@@ -12,6 +12,30 @@ func osinit() {
 	atmaninit()
 }
 
+func init() {
+	parseCommandLine(_atman_start_info.CmdLine[:])
+}
+
+// parseCommandLine parses kernel arguments passed to the VM
+// and appends them to argslice, which causes them to be visible
+// as os.Args.
+func parseCommandLine(cmdline []byte) {
+	argslice = append(argslice, "atmanos")
+
+	var start int
+	for i := 0; i < len(cmdline); i++ {
+		if cmdline[i] == 0 {
+			argslice = append(argslice, string(cmdline[start:i]))
+			break
+		}
+
+		if cmdline[i] == ' ' {
+			argslice = append(argslice, string(cmdline[start:i]))
+			start = i + 1
+		}
+	}
+}
+
 func sigpanic() {}
 
 func signame(sig uint32) string { return "" }
