@@ -1,4 +1,6 @@
 vcpus = 1
 memory = 16
 
+vif = [ 'bridge=xenbr0' ]
+
 on_crash = 'preserve'

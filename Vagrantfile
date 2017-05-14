@@ -16,6 +16,10 @@ Vagrant.configure(2) do |config|
     sudo apt-get update
     sudo apt-get install -y xen-hypervisor-4.4-amd64 gdb
     sed -i '1s|^|export PATH=$HOME/atman/bin:$PATH\\n|' .bashrc
+
+    sudo ln -nsf /home/vagrant/atman/net/xenbr0.cfg /etc/network/interfaces.d/xenbr0.cfg
+    sudo ln -nsf /home/vagrant/atman/net/xenbr0-up /etc/network/if-up.d/xenbr0-up
+
     sudo reboot
   SHELL
 end
