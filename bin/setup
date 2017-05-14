@@ -7,9 +7,9 @@ mkdir -p build/
 if [ ! -d build/go_bootstrap ]; then
   GOOS=$(uname | tr '[:upper:]' '[:lower:]')
   GOARCH=amd64
-  BOOTSTRAP_URL=https://storage.googleapis.com/golang/go1.7.5.$GOOS-$GOARCH.tar.gz
+  BOOTSTRAP_URL=https://storage.googleapis.com/golang/go1.8.1.$GOOS-$GOARCH.tar.gz
 
-  echo "Fetching bootstrap Go version 1.7.5"
+  echo "Fetching bootstrap Go version 1.8.1"
   curl -sSL "$BOOTSTRAP_URL" | tar -zx -C build/
   mv build/go build/go_bootstrap
 fi
