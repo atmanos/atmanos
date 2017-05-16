@@ -2,6 +2,8 @@ package os
 
 import "time"
 
+var Kill Signal
+
 func (p *Process) signal(sig Signal) error {
 	return nil
 }

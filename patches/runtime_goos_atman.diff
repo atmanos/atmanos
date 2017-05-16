@@ -1,3 +1,16 @@
+diff --git a/src/runtime/crash_nonunix_test.go b/src/runtime/crash_nonunix_test.go
+index 2ce995c..3689ac4 100644
+--- a/src/runtime/crash_nonunix_test.go
++++ b/src/runtime/crash_nonunix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build windows plan9 nacl
++// +build windows plan9 nacl atman
+ 
+ package runtime_test
+ 
 diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
 index 0fa0481..42834cf 100644
 --- a/src/runtime/lock_sema.go
