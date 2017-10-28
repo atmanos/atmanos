@@ -1,5 +1,4 @@
-> *NOTE*: AtmanOS is highly experimental, and not particularly featureful; for
-> example, it does not yet have console, network, or storage drivers.
+> *NOTE*: AtmanOS is an unstable and experimental project!
 
 # AtmanOS
 
@@ -25,6 +24,11 @@ and then build AtmanOS itself.
 
 Read the [Running locally with Vagrant](doc/running-locally-with-vagrant.md)
 tutorial for the fastest way to build your first program with AtmanOS.
+
+## Supported I/O
+
+  * _Console_ - available on os.Stdin and os.Stdout
+  * _Network_ - managed out-of-tree in [atmanos/anet](https://github.com/atmanos/anet)
 
 Contributing
 ------------
